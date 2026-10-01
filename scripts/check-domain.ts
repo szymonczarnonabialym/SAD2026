@@ -1,0 +1,97 @@
+import assert from 'node:assert/strict';
+// @ts-ignore Node's built-in TypeScript runner requires the source extension.
+import {applyMutation,recordSchema,weight,saleValue,harvestMatches,plotVarieties,seasonStats,compareSeasons,stockBalance,usedStock,shoppingList,reminderStarts,duePlans,treesFor,type OrchardRecord,type Plot,type Farm,type Stock,type Plan} from '../lib/orchard.ts';
+const p:Plot={id:crypto.randomUUID(),kind:'plot',name:'Test',date:'2026-09-30',variety:'Regina',initialTrees:10,area:1,plantedYear:2020,rootstock:'',note:'',version:0};
+let farm:Farm={records:[],appliedIds:[]};
+const add=(record:OrchardRecord)=>({action:'upsert' as const,record,expectedVersion:record.version,requestId:crypto.randomUUID()});
+farm=applyMutation(farm,add(p));
+const h:OrchardRecord={id:crypto.randomUUID(),kind:'harvest',date:'2026-09-30',plotId:p.id,variety:'Regina',boxes5:30,boxes10:20,note:'',version:0};
+assert.equal(weight(h),350);const op=add(h);farm=applyMutation(farm,op);assert.deepEqual(applyMutation(farm,op),farm);
+assert.throws(()=>applyMutation(farm,add({...h,boxes5:1})),/zmienił/);
+assert.throws(()=>applyMutation(farm,add({...h,id:crypto.randomUUID(),variety:'Wanda'})),/Odmiana/);
+assert.throws(()=>applyMutation(farm,add({...h,id:crypto.randomUUID(),boxes5:0,boxes10:0})),/skrzynkę/);
+const t:OrchardRecord={id:crypto.randomUUID(),kind:'trees',date:'2026-09-30',plotId:p.id,treeChange:-11,note:'',version:0};
+assert.throws(()=>applyMutation(farm,add(t)),/przekracza/);
+farm=applyMutation(farm,add({...t,treeChange:-3}));assert.equal(treesFor(p,farm.records),7);
+assert.throws(()=>applyMutation(farm,{action:'delete',id:p.id,expectedVersion:1,requestId:crypto.randomUUID()}),/powiązane/);
+assert.equal(recordSchema.safeParse({...h,boxes5:-1}).success,false);assert.equal(recordSchema.safeParse({...h,boxes10:0.5}).success,false);assert.equal(recordSchema.safeParse({...h,date:'2026-02-30'}).success,false);
+console.log('PASS: mass, idempotency, stale edit, variety, zero harvest, tree limits, references, invalid dates and counts');
+const loose:OrchardRecord={...h,id:crypto.randomUUID(),plotId:null,variety:'Łutówka',boxes5:0,boxes10:0,weightKg:125.5,pricePerKg:4.2};
+assert.equal(weight(loose),125.5);assert.equal(saleValue(loose),527.1);
+assert.equal(saleValue({...h,pricePerKg:2.5}),875);
+assert.equal(saleValue(h),0);assert.equal(recordSchema.parse(h).kind,'harvest');
+assert.equal(recordSchema.safeParse({...loose,pricePerKg:-1}).success,false);
+assert.equal(recordSchema.safeParse({...loose,weightKg:-1}).success,false);
+assert.equal(harvestMatches(loose,'sour'),true);assert.equal(harvestMatches(h,'sour'),false);
+assert.equal(harvestMatches(h,'sweet','all'),true);assert.equal(harvestMatches(h,'sweet','Wanda'),false);
+farm=applyMutation(farm,add(loose));
+assert.throws(()=>applyMutation(farm,add({...loose,id:crypto.randomUUID(),weightKg:0})),/kilogramów/);
+assert.throws(()=>applyMutation(farm,add({...loose,id:crypto.randomUUID(),boxes5:1})),/zamiast/);
+assert.throws(()=>applyMutation(farm,add({...loose,id:crypto.randomUUID(),variety:'Wanda'})),/wiśni/);
+const saved=farm.records.find(r=>r.id===loose.id)!;
+farm=applyMutation(farm,add({...saved,kind:'harvest',variety:'Łutówka',plotId:null,boxes5:2,boxes10:1,weightKg:null,pricePerKg:null}));
+assert.equal(weight(farm.records.find(r=>r.id===loose.id)!),20);
+console.log('PASS: kilograms, sales, legacy records, fruit filters, invalid mixed units and edit between units');
+const mixed:Plot={...p,id:crypto.randomUUID(),name:'Sad czereśniowy',variety:'Wanda',varieties:['Wanda','Regina']};
+let multi=applyMutation({records:[],appliedIds:[]},add(recordSchema.parse(mixed)));
+assert.deepEqual(plotVarieties(p),['Regina']);
+assert.deepEqual(plotVarieties(multi.records[0] as Plot),['Wanda','Regina']);
+const regina={...h,id:crypto.randomUUID(),plotId:mixed.id};
+multi=applyMutation(multi,add(regina));
+multi=applyMutation(multi,add({...regina,id:crypto.randomUUID(),variety:'Wanda'}));
+assert.throws(()=>applyMutation(multi,add({...regina,id:crypto.randomUUID(),variety:'Vega'})),/Odmiana/);
+assert.throws(()=>applyMutation(multi,add({...mixed,version:1,varieties:['Wanda']})),/Odmiana/);
+assert.throws(()=>applyMutation(multi,add({...mixed,id:crypto.randomUUID(),varieties:['Wanda','Łutówka']})),/gatunku/);
+assert.throws(()=>applyMutation(multi,add({...mixed,id:crypto.randomUUID(),varieties:['Wanda','Wanda']})),/gatunku/);
+assert.throws(()=>applyMutation(multi,add({...mixed,id:crypto.randomUUID(),varieties:['Regina']})),/gatunku/);
+assert.equal(recordSchema.safeParse({...mixed,varieties:[]}).success,false);
+console.log('PASS: legacy plots, multi-variety persistence, harvest membership, protected history and single-fruit plots');
+const sourPlot:Plot={...p,id:crypto.randomUUID(),variety:'Łutówka',name:'Wiśnie 1'},sourPlot2:Plot={...p,id:crypto.randomUUID(),variety:'Łutówka',name:'Wiśnie 2'};
+const statsRecords:OrchardRecord[]=[mixed,sourPlot,sourPlot2,
+ {...loose,id:crypto.randomUUID(),plotId:sourPlot.id,date:'2025-07-01',weightKg:100,pricePerKg:2},
+ {...loose,id:crypto.randomUUID(),plotId:sourPlot.id,date:'2026-07-01',weightKg:150,pricePerKg:3},
+ {...loose,id:crypto.randomUUID(),plotId:sourPlot2.id,date:'2026-07-01',weightKg:50,pricePerKg:null},
+ {...loose,id:crypto.randomUUID(),plotId:null,date:'2026-07-01',weightKg:10,pricePerKg:0},
+ {...h,id:crypto.randomUUID(),plotId:mixed.id,date:'2025-06-01',boxes5:2,boxes10:1,pricePerKg:5},
+ {...h,id:crypto.randomUUID(),plotId:mixed.id,date:'2026-06-01',boxes5:4,boxes10:2,pricePerKg:5},
+ {id:crypto.randomUUID(),kind:'treatment',plotId:mixed.id,date:'2026-04-01',version:0,note:'',treatment:'Oprysk',product:'',amount:1,unit:'l',cost:30},
+ {id:crypto.randomUUID(),kind:'treatment',plotId:null,date:'2026-04-01',version:0,note:'',treatment:'Nawożenie',product:'',amount:1,unit:'kg',cost:20}];
+const stats=seasonStats(statsRecords,'2026');
+assert.equal(stats.sour.kg,210);assert.equal(stats.sweet.kg,40);assert.equal('kg' in stats,false);
+assert.equal(stats.sales,650);assert.equal(stats.costs,50);assert.equal(stats.result,600);assert.equal(stats.missingPrices,1);
+assert.equal(seasonStats(statsRecords,'2026',sourPlot.id).sour.kg,150);
+assert.equal(seasonStats(statsRecords,'2026',sourPlot2.id).sour.kg,50);
+assert.equal(seasonStats(statsRecords,'2026',mixed.id).result,170);
+assert.equal(seasonStats(statsRecords,'2026','none').sour.kg,10);
+const comparison=compareSeasons(statsRecords,'2025','2026');
+assert.equal(comparison.sour.kg,110);assert.ok(Math.abs(comparison.sour.percent!-110)<1e-9);assert.deepEqual(comparison.sweet,{kg:20,percent:100});
+const newPlot=compareSeasons(statsRecords,'2025','2026',sourPlot2.id);assert.deepEqual(newPlot.sour,{kg:50,percent:null});
+assert.deepEqual(compareSeasons(statsRecords,'2026','2025',mixed.id).sweet,{kg:-20,percent:-50});
+assert.equal(seasonStats(statsRecords,'2024').result,0);
+console.log('PASS: yearly/plot statistics, separate fruit mass, missing prices, zero price, shared costs and zero-baseline change');
+const supply:Stock={id:crypto.randomUUID(),kind:'stock',name:'Test środek',category:'protection',unit:'l',initialAmount:10,minimum:2,date:'2026-03-01',version:0,note:''};
+let warehouse=applyMutation({records:[],appliedIds:[]},add(supply));
+const purchase:OrchardRecord={id:crypto.randomUUID(),kind:'purchase',stockId:supply.id,unit:'l',amount:2,date:'2026-03-02',version:0,note:''};
+warehouse=applyMutation(warehouse,add(purchase));
+const spray:OrchardRecord={id:crypto.randomUUID(),kind:'treatment',plotId:null,treatment:'Oprysk',product:'',amount:100,unit:'l',cost:5,materials:[{stockId:supply.id,amount:8,unit:'l'}],fruit:'sour',stage:'white-bud',date:'2026-04-01',version:0,note:''};
+const sprayOp=add(spray);warehouse=applyMutation(warehouse,sprayOp);assert.deepEqual(applyMutation(warehouse,sprayOp),warehouse);
+assert.equal(stockBalance(supply,warehouse.records),4);assert.equal(usedStock(supply.id,warehouse.records,'2026'),8);
+assert.equal(shoppingList(warehouse.records,'2026')[0].toBuy,4);
+assert.equal(shoppingList(warehouse.records,'2024')[0].toBuy,0);
+assert.throws(()=>applyMutation(warehouse,add({...spray,id:crypto.randomUUID(),materials:[{stockId:supply.id,amount:5,unit:'l'}]})),/Za mało/);
+assert.throws(()=>applyMutation(warehouse,add({...spray,id:crypto.randomUUID(),materials:[{stockId:supply.id,amount:1,unit:'kg'}]})),/jednostki/);
+assert.throws(()=>applyMutation(warehouse,add({...spray,id:crypto.randomUUID(),materials:[spray.materials![0],spray.materials![0]]})),/tylko raz/);
+assert.throws(()=>applyMutation(warehouse,{action:'delete',id:supply.id,expectedVersion:1,requestId:crypto.randomUUID()}),/powiązane/);
+assert.throws(()=>applyMutation(warehouse,add({...supply,version:1,unit:'kg'})),/Jednostka/);
+warehouse=applyMutation(warehouse,add({...spray,version:1,materials:[{stockId:supply.id,amount:11,unit:'l'}]}));
+assert.equal(stockBalance(supply,warehouse.records),1);
+assert.throws(()=>applyMutation(warehouse,{action:'delete',id:purchase.id,expectedVersion:1,requestId:crypto.randomUUID()}),/Za mało/);
+warehouse=applyMutation(warehouse,{action:'delete',id:spray.id,expectedVersion:2,requestId:crypto.randomUUID()});assert.equal(stockBalance(supply,warehouse.records),12);
+const plan:Plan={id:crypto.randomUUID(),kind:'plan',plotId:null,name:'Sprawdź kwitnienie',fruit:'sweet',stage:'flowering',date:'2027-04-20',leadDays:7,completed:false,version:0,note:''};
+warehouse=applyMutation(warehouse,add(plan));assert.equal(stockBalance(supply,warehouse.records),12);
+assert.equal(reminderStarts(plan),'2027-04-13');assert.equal(duePlans(warehouse.records,'2027-04-12').length,0);assert.equal(duePlans(warehouse.records,'2027-04-13').length,1);
+assert.equal(duePlans([{...plan,completed:true}],'2027-04-20').length,0);
+assert.throws(()=>applyMutation(multi,add({...plan,plotId:mixed.id,fruit:'sour'})),/Gatunek/);
+assert.equal(recordSchema.safeParse({...spray,materials:[{stockId:supply.id,amount:0,unit:'l'}]}).success,false);
+const fractional:OrchardRecord={...spray,materials:[{stockId:supply.id,amount:0.1,unit:'l'}]};assert.equal(stockBalance({...supply,initialAmount:0.3},[{...fractional,id:crypto.randomUUID()}, {...fractional,id:crypto.randomUUID()}, {...fractional,id:crypto.randomUUID()}]),0);
+console.log('PASS: inventory accounting, repeat purchases, edit/delete reversal, shortages, units, shopping list and dated reminders');

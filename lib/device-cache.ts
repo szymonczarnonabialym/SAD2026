@@ -1,0 +1,5 @@
+import type {Farm,Mutation} from './orchard';
+export type DeviceState={farm:Farm,pending:Mutation[],userId:string};
+async function open(){return new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('moj-sad-offline',1);r.onupgradeneeded=()=>r.result.createObjectStore('cache');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+export async function readDevice():Promise<DeviceState|null>{const db=await open();try{return await new Promise((resolve,reject)=>{const tx=db.transaction('cache');const r=tx.objectStore('cache').get('current');r.onsuccess=()=>resolve(r.result??null);r.onerror=()=>reject(r.error)})}finally{db.close()}}
+export async function writeDevice(value:DeviceState){const db=await open();try{await new Promise<void>((resolve,reject)=>{const tx=db.transaction('cache','readwrite');tx.objectStore('cache').put(value,'current');tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}finally{db.close()}}
