@@ -8,6 +8,7 @@ Aplikacja do prowadzenia sadów wiśniowych i czereśniowych, dostosowana do tel
 - Porównanie sezonów i kwater w kg i procentach. Sezon 2025 usunięty z list wyboru bez kasowania danych.
 - Opryski, nawożenie, podlewanie, obserwacje, ubytki i dosadzenia.
 - Magazyn, kolejne zakupy i wiele środków w jednym zabiegu. Edycja/usunięcie zabiegu przelicza stan; zapisy z ujemnym stanem są odrzucane, także przy równoległych operacjach.
+- Cena środka w zł/kg lub zł/l, wartość zakupu i średnia ważona cen zakupów. Szacowany koszt zużytych środków można przyciskiem wpisać do kosztu zabiegu.
 - Lista zakupów: `max(0, zużycie w wybranym roku - obecny stan)`, eksport TXT.
 - Osiem głównych faz BBCH, szczegóły zielonego/białego pąka, dodatkowy etap „Po zbiorach” i własny opis.
 - Katalog 18 nazw środków z programów Instytutu Ogrodnictwa 2026. Nawozy i inne środki dodaje się ręcznie. Katalog nazw nie jest zaleceniem stosowania; linki do źródeł i aktualnych etykiet MRiRW są w formularzu.
@@ -30,7 +31,7 @@ node scripts/check-api.mjs
 node scripts/run-framework.mjs build
 ```
 
-Test API wymaga uruchomionego podglądu i usuwa wyłącznie własne rekordy testowe. Dane każdego użytkownika są zapisywane w D1; IndexedDB przechowuje kopię i kolejkę offline. Wynik finansowy obejmuje sprzedaż z ceną minus zapisane koszty zabiegów; pełny zysk wymaga wszystkich kosztów. Zakupy magazynowe zapisują ilości, a koszty uwzględnia się w zabiegach.
+Test API wymaga uruchomionego podglądu i usuwa wyłącznie własne rekordy testowe. Dane każdego użytkownika są zapisywane w D1; IndexedDB przechowuje kopię i kolejkę offline. Wynik finansowy obejmuje sprzedaż z ceną minus zapisane koszty zabiegów; pełny zysk wymaga wszystkich kosztów. Zakupy magazynowe zapisują ilości i opcjonalne ceny; koszt zużycia uwzględnia się w zabiegach. Zakup nie jest ponownie odejmowany od wyniku. Średnia cena uwzględnia wszystkie zapisane zakupy, a szacunek wartości zapasu jest dostępny po uzupełnieniu cen wszystkich partii.
 
 Przypomnienia push przy zamkniętej aplikacji nie są wdrożone. Alarm poza aplikacją wymaga importu ICS do kalendarza obsługującego alarmy. Instalacja i pełne działanie offline na fizycznym Androidzie wymagają weryfikacji. Kopia JSON jest eksportem bez formularza importu. Limit rejestru gospodarstwa wynosi 1,5 MB; edycja offline pracuje w jednej aktywnej karcie na urządzeniu.
 

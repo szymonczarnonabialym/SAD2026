@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 // @ts-ignore Node's built-in TypeScript runner requires the source extension.
-import {applyMutation,recordSchema,weight,saleValue,harvestMatches,plotVarieties,seasonStats,compareSeasons,stockBalance,usedStock,shoppingList,reminderStarts,duePlans,treesFor,type OrchardRecord,type Plot,type Farm,type Stock,type Plan} from '../lib/orchard.ts';
+import {applyMutation,recordSchema,weight,saleValue,harvestMatches,plotVarieties,seasonStats,compareSeasons,stockBalance,stockCosts,usedStock,shoppingList,reminderStarts,duePlans,treesFor,type OrchardRecord,type Plot,type Farm,type Stock,type Plan} from '../lib/orchard.ts';
 const p:Plot={id:crypto.randomUUID(),kind:'plot',name:'Test',date:'2026-09-30',variety:'Regina',initialTrees:10,area:1,plantedYear:2020,rootstock:'',note:'',version:0};
 let farm:Farm={records:[],appliedIds:[]};
 const add=(record:OrchardRecord)=>({action:'upsert' as const,record,expectedVersion:record.version,requestId:crypto.randomUUID()});
@@ -95,3 +95,12 @@ assert.throws(()=>applyMutation(multi,add({...plan,plotId:mixed.id,fruit:'sour'}
 assert.equal(recordSchema.safeParse({...spray,materials:[{stockId:supply.id,amount:0,unit:'l'}]}).success,false);
 const fractional:OrchardRecord={...spray,materials:[{stockId:supply.id,amount:0.1,unit:'l'}]};assert.equal(stockBalance({...supply,initialAmount:0.3},[{...fractional,id:crypto.randomUUID()}, {...fractional,id:crypto.randomUUID()}, {...fractional,id:crypto.randomUUID()}]),0);
 console.log('PASS: inventory accounting, repeat purchases, edit/delete reversal, shortages, units, shopping list and dated reminders');
+const pricedSupply={...supply,pricePerUnit:20};
+const pricedPurchase={...purchase,amount:10,pricePerUnit:30};
+const costsInfo=stockCosts(pricedSupply,[pricedSupply,pricedPurchase,spray]);
+assert.equal(costsInfo.paid,500);assert.equal(costsInfo.average,25);assert.equal(costsInfo.estimatedValue,300);
+assert.equal(stockCosts(supply,[supply]).estimatedValue,null);
+assert.equal(stockCosts(pricedSupply,[pricedSupply,{...pricedPurchase,pricePerUnit:null}]).missingPrices,1);
+assert.equal(stockCosts({...supply,pricePerUnit:0},[]).average,0);
+assert.equal(recordSchema.safeParse({...supply,pricePerUnit:-1}).success,false);
+console.log('PASS: inventory purchase costs, weighted average, zero prices and incomplete price history');

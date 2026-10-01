@@ -1,6 +1,6 @@
 # Mój Sad — stan prac
 
-Pierwsza działająca wersja lokalna, 30.09.2026.
+Działająca wersja lokalna i prywatna publikacja, aktualizacja 01.10.2026.
 
 ## Zakres
 - Wiśnia Łutówka oraz czereśnie Wanda, Vega, Techlovan, Burlat, Cordia, Ulster, Regina.
@@ -9,6 +9,7 @@ Pierwsza działająca wersja lokalna, 30.09.2026.
 - Kwatery jednego gatunku z wieloma odmianami czereśni, powierzchnia, początkowa liczba drzew, podkładka i rok sadzenia. Stare kwatery jednoodmianowe działają bez migracji danych.
 - Statystyki rok do roku: kilogramy osobno dla gatunków i kwater, różnica kg/procent, osobne zbiory bez kwatery, wspólny wynik po zapisanych kosztach. Sezon 2025 usunięty z list wyboru bez kasowania danych.
 - Magazyn, kolejne zakupy, wiele środków w zabiegu, kontrola zapasu i przeliczenie przy edycji/usunięciu. Lista zakupów według rocznego zużycia minus obecny stan; eksport TXT.
+- Ceny za kg/l, wartości zakupów, średnia ważona cen i szacowana wartość zapasu. Przycisk przenosi szacowany koszt zużycia do kosztu zabiegu.
 - Katalog 18 nazw środków, ręczne nawozy, osiem głównych faz BBCH + etap po zbiorach i własny opis; źródła w formularzach.
 - Przypomnienia z wyprzedzeniem, oznaczanie jako zakończone, eksport ICS z alarmem. Przypomnienia w aplikacji po jej otwarciu; brak push przy zamknięciu.
 - Ubytki i dosadzenia, walidacja nieujemnego stanu drzew.
@@ -23,7 +24,7 @@ Pierwsza działająca wersja lokalna, 30.09.2026.
 - Kompilacja: `node scripts/run-framework.mjs build` — zaliczona.
 - Reguły domenowe: `node --experimental-strip-types scripts/check-domain.ts` — zaliczone.
 - Lokalny API: `node scripts/check-api.mjs` — zaliczone (autoryzacja, zapis, odczyt, edycja, duplikaty, konflikt wersji, równoległe zapisy, ujemne drzewa, zależności kwater).
-- Przeglądarka 390 × 844: formularz zbioru i zapis 30×5 + 20×10 = 350 kg — sprawdzone. Dane testowe usunięto wyłącznie z lokalnej bazy.
+- Przeglądarka 390 × 844: jeden sad z siedmioma odmianami, zbiór Reginy, porównanie lat, katalog, ceny zakupów, zużycie magazynu, koszt zabiegu, eksport TXT oraz ICS — sprawdzone. Usunięto wyłącznie własne dane testowe.
 - WebMCP read_orchard_summary: prawidłowe dane odczytane; nieprawidłowe parametry odrzucone.
 - Instalacja na fizycznym Androidzie i uruchomienie całej PWA offline: jeszcze niezweryfikowane.
 

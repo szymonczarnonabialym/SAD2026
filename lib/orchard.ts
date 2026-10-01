@@ -13,8 +13,8 @@ export const recordSchema = z.discriminatedUnion('kind',[
  z.object({...base,kind:z.literal('plot'),name:z.string().trim().min(1).max(100),variety,varieties:z.array(variety).min(1).max(8).optional(),area:z.number().min(0).max(100000),initialTrees:count,plantedYear:z.number().int().min(1900).max(2200).nullable(),rootstock:z.string().max(100).default('')}),
  z.object({...base,kind:z.literal('harvest'),plotId:z.string().uuid().nullable(),variety,boxes5:count,boxes10:count,weightKg:num.nullable().optional(),pricePerKg:num.nullable().optional()}),
  z.object({...base,kind:z.literal('treatment'),plotId:z.string().uuid().nullable(),treatment:z.enum(treatments),product:z.string().max(200),amount:num,unit:z.enum(['kg','l','g','ml','m³','godz.']),cost:num,materials:z.array(materialSchema).max(20).optional(),fruit:z.enum(['sour','sweet']).nullable().optional(),stage:z.string().max(160).nullable().optional()}),
- z.object({...base,kind:z.literal('stock'),name:z.string().trim().min(1).max(160),category:z.enum(['protection','fertilizer']),unit:stockUnit,initialAmount:num,minimum:num.default(0)}),
- z.object({...base,kind:z.literal('purchase'),stockId:z.string().uuid(),amount:num.positive(),unit:stockUnit}),
+ z.object({...base,kind:z.literal('stock'),name:z.string().trim().min(1).max(160),category:z.enum(['protection','fertilizer']),unit:stockUnit,initialAmount:num,minimum:num.default(0),pricePerUnit:num.nullable().optional()}),
+ z.object({...base,kind:z.literal('purchase'),stockId:z.string().uuid(),amount:num.positive(),unit:stockUnit,pricePerUnit:num.nullable().optional()}),
  z.object({...base,kind:z.literal('plan'),plotId:z.string().uuid().nullable(),name:z.string().trim().min(1).max(160),fruit:z.enum(['sour','sweet']),stage:z.string().max(160).nullable().optional(),leadDays:z.number().int().min(0).max(30).default(7),completed:z.boolean().default(false)}),
  z.object({...base,kind:z.literal('trees'),plotId:z.string().uuid(),treeChange:z.number().int().min(-1000000).max(1000000).refine(v=>v!==0)}),
  z.object({...base,kind:z.literal('observation'),plotId:z.string().uuid().nullable(),name:z.string().trim().min(1).max(160)})
@@ -60,6 +60,15 @@ export function compareSeasons(records:OrchardRecord[],previousYear:string,curre
 const roundQuantity=(n:number)=>Math.round(n*1000000)/1000000;
 export function usedStock(stockId:string,records:OrchardRecord[],year?:string){return roundQuantity(records.reduce((s,r)=>s+(r.kind==='treatment'&&(!year||r.date.slice(0,4)===year)?(r.materials??[]).filter(m=>m.stockId===stockId).reduce((a,m)=>a+m.amount,0):0),0))}
 export function stockBalance(stock:Stock,records:OrchardRecord[]){return roundQuantity(stock.initialAmount+records.reduce((s,r)=>s+(r.kind==='purchase'&&r.stockId===stock.id?r.amount:0),0)-usedStock(stock.id,records))}
+export function stockCosts(stock:Stock,records:OrchardRecord[]){
+ const purchases=records.filter(r=>r.kind==='purchase'&&r.stockId===stock.id);
+ const lots=[{amount:stock.initialAmount,price:stock.pricePerUnit},...purchases.map(r=>({amount:r.kind==='purchase'?r.amount:0,price:r.kind==='purchase'?r.pricePerUnit:null}))];
+ const priced=lots.filter(l=>l.price!=null&&l.amount>0),pricedAmount=priced.reduce((s,l)=>s+l.amount,0);
+ const paid=Math.round(priced.reduce((s,l)=>s+l.amount*l.price!,0)*100)/100;
+ const missingPrices=lots.filter(l=>l.amount>0&&l.price==null).length;
+ const average=pricedAmount>0?paid/pricedAmount:null;
+ return {paid,average,missingPrices,estimatedValue:average!=null&&missingPrices===0?Math.round(stockBalance(stock,records)*average*100)/100:null};
+}
 export function shoppingList(records:OrchardRecord[],year:string){return records.filter((r):r is Stock=>r.kind==='stock').map(stock=>{const used=usedStock(stock.id,records,year),balance=stockBalance(stock,records);return {stock,used,balance,toBuy:roundQuantity(Math.max(0,used-balance))}})}
 export function reminderStarts(plan:Plan){return new Date(Date.parse(plan.date+'T12:00:00Z')-plan.leadDays*86400000).toISOString().slice(0,10)}
 export function duePlans(records:OrchardRecord[],onDate=today()){return records.filter((r):r is Plan=>r.kind==='plan'&&!r.completed&&reminderStarts(r)<=onDate).sort((a,b)=>a.date.localeCompare(b.date))}
