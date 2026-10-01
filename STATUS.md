@@ -37,6 +37,8 @@ Lokalny przycisk logowania korzysta z symulacji startera (wyłącznie loopback).
 Lokalna migracja `drizzle/0000_sudden_triathlon.sql` została już zastosowana — nie odtwarzać jej ponownie.
 
 ## Publikacja
+Dodano osobny wariant na własne konto Cloudflare: `npm run build:cloudflare`, baza D1 właściciela, Cloudflare Access z weryfikacją JWT i instrukcja `CLOUDFLARE.md`. Zaliczone: TypeScript, testy tożsamości/podpisu/odbiorcy/wystawcy/ważności, kompilacje obu wariantów, Wrangler dry-run oraz blokada strony i API w lokalnej paczce produkcyjnej bez konfiguracji Access. Wdrożenie, polityka Access i zapis w zdalnej bazie na koncie właściciela nie zostały jeszcze zweryfikowane.
+
 Projekt jest już zarejestrowany jako prywatny. **Nie twórz kolejnego Site.**
 Identyfikator jest zapisany w `.openai/hosting.json`: `appgprj_6abc1034f3e48191969a6f389af4fd16`.
 Lokalne źródła znajdują się w checkout projektu Sites. Zachowaj dostęp owner-only i istniejący identyfikator projektu.

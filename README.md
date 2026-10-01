@@ -17,6 +17,8 @@ Aplikacja do prowadzenia sadów wiśniowych i czereśniowych, dostosowana do tel
 
 ## Uruchomienie i testy
 
+Wdrożenie na własnym koncie Cloudflare: [instrukcja krok po kroku](CLOUDFLARE.md). Użyj osobnej komendy `npm run build:cloudflare`; standardowe `npm run build` zachowuje publikację Sites.
+
 ```sh
 npm ci
 node scripts/run-framework.mjs dev
