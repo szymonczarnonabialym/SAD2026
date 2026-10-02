@@ -1,17 +1,14 @@
 import handler from 'vinext/server/fetch-handler';
-import { authorizeCloudflareRequest, type AccessConfig } from '../lib/cloudflare-auth';
+import { passwordAuth, type PasswordEnv } from '../lib/password-auth';
 
 export default {
-  async fetch(request: Request, env: Cloudflare.Env & AccessConfig, ctx: ExecutionContext) {
-    const authorized = await authorizeCloudflareRequest(request, env);
-    if (authorized instanceof Response) return authorized;
-    const url = new URL(request.url);
-    if (url.pathname === '/signin-with-chatgpt' || url.pathname === '/callback') {
-      return new Response(null, { status: 302, headers: { Location: '/', 'Cache-Control': 'no-store' } });
+  async fetch(request: Request, env: Cloudflare.Env & PasswordEnv, ctx: ExecutionContext) {
+    try {
+      const authorized = await passwordAuth(request, env);
+      return authorized instanceof Response ? authorized : handler.fetch(authorized,env,ctx);
+    } catch {
+      // Do not log credentials, cookies or configuration secrets on auth failures.
+      return Response.json({error:'Nie udało się obsłużyć logowania. Spróbuj ponownie.'},{status:503,headers:{'Cache-Control':'no-store'}});
     }
-    if (url.pathname === '/signout-with-chatgpt') {
-      return new Response(null, { status: 302, headers: { Location: '/cdn-cgi/access/logout', 'Cache-Control': 'no-store' } });
-    }
-    return handler.fetch(authorized, env, ctx);
   },
 };

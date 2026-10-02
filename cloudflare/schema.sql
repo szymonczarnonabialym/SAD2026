@@ -3,3 +3,14 @@ CREATE TABLE IF NOT EXISTS farms (
   data TEXT NOT NULL,
   revision INTEGER DEFAULT 0 NOT NULL
 );
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  token_hash TEXT PRIMARY KEY NOT NULL,
+  owner TEXT NOT NULL,
+  expires INTEGER NOT NULL,
+  password_version TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_login_attempts (
+  bucket TEXT PRIMARY KEY NOT NULL,
+  attempts INTEGER NOT NULL,
+  expires INTEGER NOT NULL
+);

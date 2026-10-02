@@ -1,33 +1,48 @@
 # Własne konto Cloudflare — SAD2026
 
 Repozytorium: https://github.com/szymonczarnonabialym/SAD2026, gałąź `main`, katalog główny repozytorium.
-Ta ścieżka korzysta z osobnej bazy i logowania Cloudflare Access. Dane z lokalnego podglądu ani publikacji Sites nie przenoszą się automatycznie.
+Ten wariant korzysta z bazy D1 właściciela i własnego logowania e-mail/hasło. Dane z lokalnego podglądu ani publikacji Sites nie przenoszą się automatycznie.
 
-1. W **Storage & databases → D1** utwórz bazę `sad2026`. Konfiguracja `wrangler.cloudflare.jsonc` zawiera podany przez właściciela Database ID `9aeb2515-2cac-4500-9583-e0069486b494` i binding `DB`.
-2. Otwórz tę bazę → **Console**, wklej i wykonaj zawartość [cloudflare/schema.sql](cloudflare/schema.sql). Polecenie tworzy tabelę `farms`, zachowując istniejące dane.
+## Aktualizacja istniejącego Workera
+
+1. W **Workers & Pages → sad2026 → Settings → Variables and Secrets → Add** wybierz typ **Secret**. Nazwa: `SAD_LOGIN_CONFIG`. Wartość: cała zawartość lokalnego pliku `.sites-runtime/sad-login-secret.json`, przygotowanego dla właściciela. Kliknij **Deploy**. To ustawienie wykonania Workera, nie zmienna sekcji Build. Plik zawiera adres konta i posolony skrót hasła; nie wysyłaj go do GitHub.
+2. W ustawieniach Build użyj `npm run build:cloudflare` oraz komendy wdrożenia `npx wrangler deploy --config dist/server/wrangler.json`. Wdróż aktualną gałąź `main` i poczekaj na udane zakończenie.
+3. Otwórz adres aplikacji w nowym oknie prywatnym. Przy skonfigurowanym sekrecie pojawi się formularz „Zaloguj się do sadu”. Jeżeli zamiast niego nadal pojawia się ekran Access, wyłącz ochronę **wyłącznie tej aplikacji**: regułę w zakładce **Access** Workera lub aplikację chroniącą jego hostname w **Zero Trust → Access → Applications**. Nie zmieniaj reguł innych aplikacji. Dopiero po wdrożeniu nowego logowania wyłącz poprzednią ochronę. Szczegóły: [wyłączanie Access](https://developers.cloudflare.com/workers/configuration/cloudflare-access/#disable-access).
+4. Zaloguj się ustalonym e-mailem i hasłem. Zaznacz **Zapamiętaj to urządzenie**, aby sesja trwała 30 dni. Sprawdź istniejące wpisy i zapis po odświeżeniu. Na telefonie w menu Chrome wybierz „Dodaj do ekranu głównego” / „Zainstaluj aplikację”.
+
+Zmienne `CF_ACCESS_TEAM_DOMAIN` i `CF_ACCESS_AUD` nie są już używane. Nowe logowanie zachowuje identyfikator danych `cloudflare:<e-mail>`, więc wpisy poprzedniego konta Access z tym samym adresem pozostają dostępne. Tabele sesji są tworzone automatycznie bez zmiany rejestru gospodarstwa.
+
+## Pierwsze wdrożenie
+
+1. W **Storage & databases → D1** użyj bazy `sad2026`. Konfiguracja `wrangler.cloudflare.jsonc` zawiera podany przez właściciela Database ID `9aeb2515-2cac-4500-9583-e0069486b494` oraz binding `DB`.
+2. W bazie → **Console** wykonaj [cloudflare/schema.sql](cloudflare/schema.sql). Tworzy wymagane tabele bez kasowania istniejących danych.
 3. W **Workers & Pages → Create application → Import repository** wybierz `SAD2026`. Ustaw:
    - Project name: `sad2026`
    - Production branch: `main`
-   - Root directory: `/` (główny katalog repozytorium)
+   - Root directory: `/`
    - Build command: `npm run build:cloudflare`
    - Deploy command: `npx wrangler deploy --config dist/server/wrangler.json`
-   - Jeśli panel pyta o komendę wersji podglądowych: `npx wrangler versions upload --config dist/server/wrangler.json`. Automatyczne URL-e wersji podglądowych są wyłączone w konfiguracji.
+   - Komenda wersji podglądowych, jeśli wymagana: `npx wrangler versions upload --config dist/server/wrangler.json`. Automatyczne URL-e wersji podglądowych są wyłączone.
    - Build variable: `NODE_VERSION` = `24`.
-   Kliknij **Deploy**. Binding D1 pochodzi z konfiguracji; nie zmieniaj jego nazwy `DB`. Gdy panel zgłosi brak uprawnień do bazy, wybierz token wdrożenia mający dostęp do tej bazy D1 i edycji Workers.
-4. Skopiuj adres produkcyjny `sad2026.<twoja-subdomena>.workers.dev`. Pierwsze otwarcie może pokazać informację o brakujących ustawieniach Access — dane nie są wtedy udostępniane.
-5. Otwórz **Zero Trust**. Przy pierwszym wejściu skonfiguruj organizację i zanotuj jej domenę `https://<nazwa>.cloudflareaccess.com`. W **Access → Applications → Add an application → Self-hosted** dodaj aplikację „Mój Sad”, obejmującą pełny hostname produkcyjny z kroku 4. Utwórz politykę **Allow**, **Include → Emails**, wpisując wyłącznie adresy osób, które mają mieć dostęp. Włącz logowanie **One-time PIN**, jeżeli nie jest dostępne domyślnie. Kod przychodzi na podany e-mail.
-6. W szczegółach aplikacji Access skopiuj **Application Audience (AUD) Tag**. W **Workers & Pages → sad2026 → Settings → Variables and Secrets** dodaj jako tekstowe zmienne wykonania:
+4. Kliknij **Deploy**, zachowując binding D1 `DB`. Dodaj sekret i sprawdź logowanie według punktów powyżej. Bez prawidłowego sekretu aplikacja blokuje stronę i API.
 
-   | Nazwa | Wartość |
-   | --- | --- |
-   | `CF_ACCESS_TEAM_DOMAIN` | `https://<nazwa>.cloudflareaccess.com` — pełna domena organizacji, bez końcowego ukośnika |
-   | `CF_ACCESS_AUD` | Application Audience (AUD) Tag tej aplikacji Access |
+## Sesje i konfiguracja lokalna
 
-   Zapisz / wdroż zmiany. To zmienne Workera, a nie sekcji Build. Konfiguracja `keep_vars` zachowuje je przy następnych publikacjach.
-7. Otwórz adres aplikacji, zaloguj się kodem e-mail i sprawdź zapis oraz odczyt własnego wpisu po odświeżeniu. Na telefonie otwórz ten adres w Chrome; z menu wybierz „Dodaj do ekranu głównego” / „Zainstaluj aplikację”.
+Hasło jest weryfikowane przez scrypt z losową solą. Sekret `SAD_LOGIN_CONFIG` ma format JSON `{ "email": "adres konta", "passwordHash": "skrót wygenerowany przez skrypt" }`. Sesje używają losowych tokenów; w D1 przechowywane są wyłącznie ich skróty. Cookie na HTTPS ma `Secure`, `HttpOnly`, `SameSite=Lax` i prefiks `__Host-`. Logowanie i wylogowanie sprawdzają źródło żądania. Liczba prób logowania jest ograniczona w D1.
 
-Serwer weryfikuje podpis tokenu Access, wystawcę, odbiorcę i termin ważności. Sam nagłówek z adresem e-mail nie daje dostępu. Brak ustawień lub nieprawidłowy token blokuje dostęp do aplikacji i API.
+Bez zapamiętywania cookie jest sesyjne, a sesja na serwerze wygasa najpóźniej po 12 godzinach. Zapamiętana sesja wygasa po 30 dniach od logowania. Przycisk **Wyloguj** unieważnia sesję tego urządzenia i usuwa jego lokalną kopię danych. Oczekujące wpisy trzeba najpierw zsynchronizować. Zmiana sekretu z nowym skrótem hasła unieważnia wcześniejsze sesje.
 
-Weryfikacja lokalna: `node --experimental-strip-types scripts/check-cloudflare-auth.ts`, TypeScript i kompilacja `npm run build:cloudflare`. Pełne logowanie oraz zapis na koncie właściciela wymagają sprawdzenia po wykonaniu kroków powyżej.
+`scripts/setup-password-login.mjs` przyjmuje JSON `{email,password}` na standardowym wejściu. Generuje ignorowane przez Git pliki `.dev.vars` i `.sites-runtime/sad-login-secret.json`; nie zapisuje hasła. Uruchomienie tego skryptu z nowymi danymi wymaga ponownego ustawienia sekretu w Cloudflare. Nie uruchamiaj go podczas każdego buildu.
 
-Źródła: [D1](https://developers.cloudflare.com/d1/get-started/), [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), [Access](https://developers.cloudflare.com/workers/configuration/cloudflare-access/), [weryfikacja tokenu Access](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/), [One-time PIN](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/).
+Po zbudowaniu lokalnego wariantu można uruchomić:
+
+```sh
+npx wrangler d1 execute sad2026 --local --config dist/server/wrangler.json --file cloudflare/schema.sql
+npx wrangler dev --config dist/server/wrangler.json --local --port 5174
+```
+
+Test `scripts/check-password-login.mjs` przyjmuje takie samo wejście JSON i używa wyłącznie lokalnego Workera pod `127.0.0.1:5174`. Sprawdza logowanie, blokadę API, CSRF, pamiętanie urządzenia, zapis i odczyt, wylogowanie, zmianę tokenu oraz limit prób. Nie używa produkcyjnej bazy.
+
+`node scripts/check-password-sessions.mjs` używa własnych losowych danych testowych oraz izolowanego workerd/D1. Sprawdza flagi cookie HTTPS, przechowywanie skrótów tokenów, czas sesji i jej unieważnianie. Nie wymaga rzeczywistego konta.
+
+Źródła: [sekrety Workers](https://developers.cloudflare.com/workers/configuration/secrets/), [D1](https://developers.cloudflare.com/d1/get-started/), [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), [przechowywanie haseł](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).

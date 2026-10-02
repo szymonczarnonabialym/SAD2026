@@ -1,6 +1,6 @@
 # Mój Sad — stan prac
 
-Działająca wersja lokalna i prywatna publikacja, aktualizacja 01.10.2026.
+Działająca wersja lokalna i prywatna publikacja, aktualizacja 02.10.2026.
 
 ## Zakres
 - Wiśnia Łutówka oraz czereśnie Wanda, Vega, Techlovan, Burlat, Cordia, Ulster, Regina.
@@ -37,7 +37,11 @@ Lokalny przycisk logowania korzysta z symulacji startera (wyłącznie loopback).
 Lokalna migracja `drizzle/0000_sudden_triathlon.sql` została już zastosowana — nie odtwarzać jej ponownie.
 
 ## Publikacja
-Dodano osobny wariant na własne konto Cloudflare: `npm run build:cloudflare`, baza D1 właściciela, Cloudflare Access z weryfikacją JWT i instrukcja `CLOUDFLARE.md`. Zaliczone: TypeScript, testy tożsamości/podpisu/odbiorcy/wystawcy/ważności, kompilacje obu wariantów, Wrangler dry-run oraz blokada strony i API w lokalnej paczce produkcyjnej bez konfiguracji Access. Wdrożenie, polityka Access i zapis w zdalnej bazie na koncie właściciela nie zostały jeszcze zweryfikowane.
+Osobny wariant na własne konto Cloudflare: `npm run build:cloudflare`, baza D1 właściciela i instrukcja `CLOUDFLARE.md`. Cloudflare Access zastąpiono logowaniem e-mail/hasło. Konto jest konfigurowane przez sekret `SAD_LOGIN_CONFIG` zawierający posolony skrót scrypt. Zapamiętywanie urządzenia: 30 dni; bez zapamiętywania: cookie sesyjne z limitem 12 godzin po stronie serwera. Wylogowanie unieważnia sesję w D1 oraz usuwa lokalną kopię danych. Wpisy starego konta Access pozostają pod tym samym identyfikatorem właściciela.
+
+Zaliczone: TypeScript, kompilacje obu wariantów i Wrangler dry-run. Testy lokalnej paczki produkcyjnej: poprawne i błędne hasło, blokada podszytych nagłówków, CSRF, odczyt/zapis z zachowaniem właściciela, zmiana tokenu, wylogowanie i równoległy limit prób. Izolowany workerd/D1 (`scripts/check-password-sessions.mjs`): brak konfiguracji blokuje dostęp, cookie HTTPS Secure/HttpOnly, tokeny w bazie są skrótami, terminy 12 godzin i 30 dni, wygasanie i unieważnianie po zmianie wersji hasła. Formularz sprawdzony w przeglądarce, także przy 390 × 844, z logowaniem, odświeżeniem i wylogowaniem.
+
+Pliki `.dev.vars` i `.sites-runtime/sad-login-secret.json` są lokalne i ignorowane przez Git; hasło nie jest zapisywane w plikach. CLI Cloudflare nie jest zalogowane i brak zalogowanej karty panelu. Zdalne ustawienie sekretu, wdrożenie oraz wyłączenie istniejącej reguły Access wymagają wykonania instrukcji przez właściciela. Te kroki i zapis w zdalnej bazie nie zostały zweryfikowane.
 
 Projekt jest już zarejestrowany jako prywatny. **Nie twórz kolejnego Site.**
 Identyfikator jest zapisany w `.openai/hosting.json`: `appgprj_6abc1034f3e48191969a6f389af4fd16`.

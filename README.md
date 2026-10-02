@@ -14,6 +14,7 @@ Aplikacja do prowadzenia sadów wiśniowych i czereśniowych, dostosowana do tel
 - Katalog 18 nazw środków z programów Instytutu Ogrodnictwa 2026. Nawozy i inne środki dodaje się ręcznie. Katalog nazw nie jest zaleceniem stosowania; linki do źródeł i aktualnych etykiet MRiRW są w formularzu.
 - Przypomnienia w aplikacji według daty i wyprzedzenia, eksport ICS z alarmem do kalendarza telefonu. Plany nie zużywają środków; wykonany zabieg zapisuje się osobno.
 - CSV sezonu, kopia JSON, PWA z manifestem i powłoką offline.
+- W wariancie na własnym Cloudflare: login i hasło, zapamiętywanie urządzenia przez 30 dni oraz wylogowanie. Konfiguracja konta jest sekretem Workera; hasło nie trafia do repozytorium.
 
 ## Uruchomienie i testy
 

@@ -12,7 +12,7 @@ import {Warehouse,InventoryForm,MaterialsField} from './orchard-inventory';
 import {PlanList,PlanForm,GrowthStageField} from './orchard-plans';
 import {stageLabel} from '@/lib/growth-stages';
 import OrchardStatistics from './orchard-statistics';
-import {readDevice,writeDevice,type DeviceState} from '@/lib/device-cache';
+import {readDevice,writeDevice,clearDevice,type DeviceState} from '@/lib/device-cache';
 
 const fmt=(n:number)=>new Intl.NumberFormat('pl-PL',{maximumFractionDigits:2}).format(n);
 const day=(s:string)=>new Date(s+'T12:00:00').toLocaleDateString('pl-PL',{day:'numeric',month:'short'});
@@ -24,19 +24,20 @@ function download(name:string,content:string,type:string){const url=URL.createOb
 export default function Orchard(){
  const [device,setDevice]=useState<DeviceState|null>(null),deviceRef=useRef<DeviceState|null>(null);
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[auth,setAuth]=useState(false),[offline,setOffline]=useState(false),[syncing,setSyncing]=useState(false);
- const syncLock=useRef(false),ownsDevice=useRef(false);
+ const [passwordLogin,setPasswordLogin]=useState(false),[loggingOut,setLoggingOut]=useState(false);
+ const syncLock=useRef(false),ownsDevice=useRef(false),logoutLock=useRef(false);
  const [tab,setTab]=useState('summary'),[year,setYear]=useState(today().slice(0,4)),[filter,setFilter]=useState('all');
  const [fruit,setFruit]=useState('sour'),[workFilter,setWorkFilter]=useState('Oprysk');
  const [modal,setModal]=useState<{kind:Kind,record?:OrchardRecord,defaultVariety?:string,defaultTreatment?:string}|null>(null),[remove,setRemove]=useState<OrchardRecord|null>(null),[install,setInstall]=useState<any>(null);
  const [formError,setFormError]=useState(''),[busy,setBusy]=useState(false);
  async function commit(v:DeviceState){await writeDevice(v);deviceRef.current=v;setDevice(v)}
  async function sync(){
-  if(!ownsDevice.current||syncLock.current)return;syncLock.current=true;setSyncing(true);
+  if(!ownsDevice.current||syncLock.current||logoutLock.current)return;syncLock.current=true;setSyncing(true);
   try{
    const r=await fetch('/api/farm',{cache:'no-store'});const data=await r.json() as {farm:DeviceState['farm'],userId:string,error?:string};
    if(r.status===401){setAuth(true);setDevice(null);throw new Error(data.error)}
    if(!r.ok)throw new Error(data.error||'Nie udało się wczytać danych.');
-   setAuth(false);setOffline(false);
+   setAuth(false);setOffline(false);setPasswordLogin(data.userId.startsWith('cloudflare:'));
    const old=deviceRef.current;let current:DeviceState={farm:data.farm,userId:data.userId,pending:old&&old.userId===data.userId?old.pending:[]};
    await commit(current);
    while(current.pending.length){
@@ -47,6 +48,18 @@ export default function Orchard(){
    setError('');
   }catch(e){setOffline(!navigator.onLine);setError((e as Error).message||'Brak połączenia. Spróbuj ponownie.');}
   finally{syncLock.current=false;setSyncing(false);setLoading(false)}
+ }
+ async function logout(){
+  if(logoutLock.current)return;
+  if(syncLock.current||deviceRef.current?.pending.length){toast.error('Najpierw połącz się z internetem i zapisz oczekujące zmiany.');return}
+  logoutLock.current=true;setLoggingOut(true);setModal(null);setRemove(null);
+  try{
+   const response=await fetch('/api/auth/logout',{method:'POST'});
+   if(!response.ok)throw new Error('Nie udało się wylogować. Spróbuj ponownie.');
+   await clearDevice();deviceRef.current=null;setDevice(null);
+   if('caches' in window)for(const key of await caches.keys())if(key.startsWith('moj-sad-shell-'))await caches.delete(key);
+   window.location.replace('/login');
+  }catch(e){toast.error((e as Error).message);logoutLock.current=false;setLoggingOut(false)}
  }
  useEffect(()=>{let active=true;let release:(()=>void)|undefined;
   const boot=async()=>{ownsDevice.current=true;try{const v=await readDevice();if(active){deviceRef.current=v;setDevice(v);await sync()}}catch{setError('Pamięć telefonu jest niedostępna. Zezwól przeglądarce na zapis danych.');setLoading(false)}};
@@ -77,6 +90,7 @@ export default function Orchard(){
  const plotName=(id:string|null)=>plots.find(p=>p.id===id)?.name||'Cały sad / bez kwatery';
  function start(kind:Kind,record?:OrchardRecord){setFormError('');setModal({kind,record,defaultVariety:tab==='harvest'&&fruit==='sweet'?(filter==='all'?'Wanda':filter):'Łutówka',defaultTreatment:tab==='work'&&workFilter!=='history'?workFilter:'Oprysk'})}
  async function save(record:OrchardRecord){
+  if(logoutLock.current)throw new Error('Trwa wylogowywanie.');
   if(!deviceRef.current)throw new Error('Najpierw wczytaj gospodarstwo z połączeniem internetowym.');
   if(syncLock.current)throw new Error('Poczekaj na zakończenie synchronizacji.');
   const parsed=recordSchema.safeParse(record);if(!parsed.success)throw new Error('Sprawdź wymagane pola i wartości liczbowe.');
@@ -85,6 +99,7 @@ export default function Orchard(){
   await commit({...deviceRef.current,pending:[...deviceRef.current.pending,m]});setModal(null);toast.success('Wpis dodany do kolejki zapisu.');await sync();
  }
  async function deleteRecord(){
+  if(logoutLock.current)return;
   if(!remove||!deviceRef.current)return;setBusy(true);
   try{
    if(syncLock.current)throw new Error('Poczekaj na zakończenie synchronizacji.');
@@ -105,7 +120,7 @@ export default function Orchard(){
   Promise.resolve(context.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});return()=>lifecycle.abort();
  },[year,currentTrees,device]);
  function RecordList({list}:{list:OrchardRecord[]}){return <>{sorted(list).map(r=><div className="record" key={r.id}><div><strong>{r.kind==='harvest'?r.variety:r.kind==='treatment'?r.treatment:r.kind==='observation'?r.name:r.kind==='trees'?(r.treeChange<0?'Ubytek drzew':'Dosadzenie'):r.kind==='purchase'?'Zakup: '+(stocks.find(s=>s.id===r.stockId)?.name||'środek'):r.name}</strong>{pendingIds.has(r.id)&&<span className="badge">Oczekuje</span>}<p>{day(r.date)} · {'plotId'in r?plotName(r.plotId):''}</p>{r.kind==='harvest'&&<><p><b>{fmt(weight(r))} kg</b> · {r.weightKg!=null?'Wpisano w kilogramach':`${r.boxes5} × 5 kg + ${r.boxes10} × 10 kg`}</p><p>{r.pricePerKg!=null?`${fmt(r.pricePerKg)} zł/kg · sprzedaż ${fmt(saleValue(r))} zł`:'Cena sprzedaży niepodana'}</p></>}{r.kind==='treatment'&&<p>{r.product&&r.product+' · '}{fmt(r.amount)} {r.unit}{r.cost>0&&` · ${fmt(r.cost)} zł`}</p>}{r.kind==='purchase'&&<p>+{fmt(r.amount)} {r.unit}</p>}{r.kind==='stock'&&<p>Pierwszy zakup / stan początkowy: {fmt(r.initialAmount)} {r.unit}</p>}{r.kind==='treatment'&&<><p>{r.fruit?(r.fruit==='sour'?'Wiśnie':'Czereśnie')+' · ':''}{r.stage&&stageLabel(r.stage)}</p>{r.materials?.map(m=><p key={m.stockId}>{stocks.find(s=>s.id===m.stockId)?.name} · zużyto {fmt(m.amount)} {m.unit}</p>)}</>}{r.kind==='trees'&&<p>{r.treeChange>0?'+':''}{r.treeChange} drzew</p>}{r.note&&<p className="note-text">{r.note}</p>}</div><div className="record-actions"><button className="icon-btn" aria-label={`Edytuj ${titles[r.kind]} ${r.date}`} disabled={pendingIds.has(r.id)||syncing} onClick={()=>start(r.kind,r)}><Pencil/></button><button className="icon-btn" aria-label={`Usuń ${titles[r.kind]} ${r.date}`} disabled={pendingIds.has(r.id)||syncing} onClick={()=>setRemove(r)}><Trash2/></button></div></div>)}</>}
- return <div className="shell"><Toaster position="top-center" richColors/><header><div className="brand"><span className="brandmark"><Sprout/></span><strong>Mój Sad</strong></div><div className="header-right"><span className="sync">{syncing?<LoaderCircle size={16} className="spin"/>:offline?<WifiOff size={16}/>:<CloudCheck size={16}/>}<span>{syncing?'Zapisywanie…':offline?'Bez połączenia':device?.pending.length?`${device.pending.length} oczekuje`:'Dziennik gospodarstwa'}</span></span>{install&&<button className="link-btn" onClick={async()=>{await install.prompt();setInstall(null)}}>Zainstaluj</button>}</div></header><main>
+ return <div className="shell"><Toaster position="top-center" richColors/><header><div className="brand"><span className="brandmark"><Sprout/></span><strong>Mój Sad</strong></div><div className="header-right"><span className="sync">{syncing?<LoaderCircle size={16} className="spin"/>:offline?<WifiOff size={16}/>:<CloudCheck size={16}/>}<span>{syncing?'Zapisywanie…':offline?'Bez połączenia':device?.pending.length?`${device.pending.length} oczekuje`:'Dziennik gospodarstwa'}</span></span>{passwordLogin&&device&&!auth&&<button className="link-btn" disabled={loggingOut||syncing} onClick={()=>void logout()}>{loggingOut?'Wylogowywanie…':'Wyloguj'}</button>}{install&&<button className="link-btn" onClick={async()=>{await install.prompt();setInstall(null)}}>Zainstaluj</button>}</div></header><main>
  <div className="page-title"><div><p className="eyebrow">TWÓJ SAD W LICZBACH</p><h1>{tab==='summary'?'Przegląd sezonu':tab==='harvest'?'Zbiory':tab==='work'?'Dziennik zabiegów':tab==='statistics'?'Statystyki rok do roku':tab==='warehouse'?'Magazyn środków':'Kwatery i drzewa'}</h1></div><Choice label="Sezon" value={year} onChange={setYear} options={years.map(y=>({value:y,label:y}))}/></div>
  {loading&&<p className="notice">Wczytywanie gospodarstwa…</p>}
  {auth?<div className="notice error">Zaloguj się, aby otworzyć swój rejestr. <a href="/signin-with-chatgpt?return_to=%2F" target="_top" className="link-btn">Zaloguj się</a></div>:error&&<div className="notice error" role="alert">{offline?'Brak internetu. Wpisy oczekują na przesłanie.':error} <button className="link-btn" onClick={()=>void sync()} disabled={syncing}>Spróbuj ponownie</button></div>}
