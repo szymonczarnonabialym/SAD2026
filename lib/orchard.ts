@@ -4,19 +4,19 @@ export const treatments = ['Nawożenie','Podlewanie','Oprysk','Cięcie','Koszeni
 export const activeTreatments = ['Oprysk','Nawożenie','Podlewanie'] as const;
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(v => !isNaN(Date.parse(v)) && new Date(v).toISOString().slice(0,10)===v,'Nieprawidłowa data');
 const base = {id:z.string().uuid(),date,version:z.number().int().nonnegative(),note:z.string().max(2000).default('')};
-const variety = z.enum(varieties);
+const variety = z.string().trim().min(1).max(80);
 const count=z.number().int().min(0).max(1000000);
 const num=z.number().min(0).max(100000000);
 const stockUnit=z.enum(['kg','l']);
 const materialSchema=z.object({stockId:z.string().uuid(),amount:num.positive(),unit:stockUnit});
 export const recordSchema = z.discriminatedUnion('kind',[
- z.object({...base,kind:z.literal('plot'),name:z.string().trim().min(1).max(100),variety,varieties:z.array(variety).min(1).max(8).optional(),area:z.number().min(0).max(100000),initialTrees:count,plantedYear:z.number().int().min(1900).max(2200).nullable(),rootstock:z.string().max(100).default('')}),
+ z.object({...base,kind:z.literal('plot'),name:z.string().trim().min(1).max(100),variety,varieties:z.array(variety).min(1).max(50).optional(),varietyTrees:z.array(z.object({variety,trees:count})).max(50).optional(),area:z.number().min(0).max(100000),initialTrees:count,plantedYear:z.number().int().min(1900).max(2200).nullable(),rootstock:z.string().max(100).default('')}),
  z.object({...base,kind:z.literal('harvest'),plotId:z.string().uuid().nullable(),variety,boxes5:count,boxes10:count,weightKg:num.nullable().optional(),pricePerKg:num.nullable().optional()}),
  z.object({...base,kind:z.literal('treatment'),plotId:z.string().uuid().nullable(),treatment:z.enum(treatments),product:z.string().max(200),amount:num,unit:z.enum(['kg','l','g','ml','m³','godz.']),cost:num,materials:z.array(materialSchema).max(20).optional(),fruit:z.enum(['sour','sweet']).nullable().optional(),stage:z.string().max(160).nullable().optional()}),
  z.object({...base,kind:z.literal('stock'),name:z.string().trim().min(1).max(160),category:z.enum(['protection','fertilizer']),unit:stockUnit,initialAmount:num,minimum:num.default(0),pricePerUnit:num.nullable().optional()}),
  z.object({...base,kind:z.literal('purchase'),stockId:z.string().uuid(),amount:num.positive(),unit:stockUnit,pricePerUnit:num.nullable().optional()}),
  z.object({...base,kind:z.literal('plan'),plotId:z.string().uuid().nullable(),name:z.string().trim().min(1).max(160),fruit:z.enum(['sour','sweet']),stage:z.string().max(160).nullable().optional(),leadDays:z.number().int().min(0).max(30).default(7),completed:z.boolean().default(false)}),
- z.object({...base,kind:z.literal('trees'),plotId:z.string().uuid(),treeChange:z.number().int().min(-1000000).max(1000000).refine(v=>v!==0)}),
+ z.object({...base,kind:z.literal('trees'),plotId:z.string().uuid(),variety:variety.nullable().optional(),treeChange:z.number().int().min(-1000000).max(1000000).refine(v=>v!==0)}),
  z.object({...base,kind:z.literal('observation'),plotId:z.string().uuid().nullable(),name:z.string().trim().min(1).max(160)})
 ]);
 export type OrchardRecord=z.infer<typeof recordSchema>;
@@ -38,6 +38,7 @@ export function saleValue(r:OrchardRecord){return r.kind==='harvest'&&r.pricePer
 export function harvestMatches(r:OrchardRecord,fruit:string,variety='all'){return r.kind==='harvest'&&(fruit==='sour'?r.variety==='Łutówka':r.variety!=='Łutówka'&&(variety==='all'||r.variety===variety))}
 // Old single-variety plots remain readable without rewriting saved records.
 export function plotVarieties(p:Plot){return p.varieties??[p.variety]}
+export function availableVarieties(records:OrchardRecord[]){return Array.from(new Set<string>([...varieties,...records.flatMap(r=>r.kind==='plot'?plotVarieties(r):r.kind==='harvest'?[r.variety]:[])]))}
 export function fruitFor(variety:string):Fruit{return variety==='Łutówka'?'sour':'sweet'}
 export function plotFruit(p:Plot):Fruit{return fruitFor(p.variety)}
 export function seasonStats(records:OrchardRecord[],year:string,plotId='all'){
@@ -58,6 +59,12 @@ export function compareSeasons(records:OrchardRecord[],previousYear:string,curre
  return {previous,current,sour:changeFrom(previous.sour.kg,current.sour.kg),sweet:changeFrom(previous.sweet.kg,current.sweet.kg)};
 }
 const roundQuantity=(n:number)=>Math.round(n*1000000)/1000000;
+export function unitPriceFromTotal(amount:number,total:number|null){
+ if(total===null)return null;
+ if(!Number.isFinite(amount)||amount<=0)throw new Error('Podaj dodatnią ilość środka, aby przeliczyć cenę zakupu.');
+ if(!Number.isFinite(total)||total<0)throw new Error('Cena zakupu musi być nieujemną liczbą.');
+ return total/amount;
+}
 export function usedStock(stockId:string,records:OrchardRecord[],year?:string){return roundQuantity(records.reduce((s,r)=>s+(r.kind==='treatment'&&(!year||r.date.slice(0,4)===year)?(r.materials??[]).filter(m=>m.stockId===stockId).reduce((a,m)=>a+m.amount,0):0),0))}
 export function stockBalance(stock:Stock,records:OrchardRecord[]){return roundQuantity(stock.initialAmount+records.reduce((s,r)=>s+(r.kind==='purchase'&&r.stockId===stock.id?r.amount:0),0)-usedStock(stock.id,records))}
 export function stockCosts(stock:Stock,records:OrchardRecord[]){
@@ -73,6 +80,23 @@ export function shoppingList(records:OrchardRecord[],year:string){return records
 export function reminderStarts(plan:Plan){return new Date(Date.parse(plan.date+'T12:00:00Z')-plan.leadDays*86400000).toISOString().slice(0,10)}
 export function duePlans(records:OrchardRecord[],onDate=today()){return records.filter((r):r is Plan=>r.kind==='plan'&&!r.completed&&reminderStarts(r)<=onDate).sort((a,b)=>a.date.localeCompare(b.date))}
 export function treesFor(p:Plot,records:OrchardRecord[]){return p.initialTrees+records.reduce((n,r)=>n+(r.kind==='trees'&&r.plotId===p.id?r.treeChange:0),0)}
+export function plotTreeCounts(p:Plot,records:OrchardRecord[]){
+ const selected=plotVarieties(p);
+ const rows=selected.map(variety=>{
+  const initial=p.varietyTrees?.find(row=>row.variety===variety)?.trees??(p.varietyTrees===undefined&&selected.length===1?p.initialTrees:null);
+  const change=records.reduce((n,r)=>n+(r.kind==='trees'&&r.plotId===p.id&&(r.variety===variety||(!r.variety&&selected.length===1&&p.varietyTrees===undefined))?r.treeChange:0),0);
+  return {variety,initial,trees:initial===null?null:initial+change};
+ });
+ return {rows,unassigned:treesFor(p,records)-rows.reduce((n,row)=>n+(row.trees??0),0)};
+}
+export function treesForVariety(plots:Plot[],records:OrchardRecord[],variety:string){
+ const rows=plots.filter(p=>plotVarieties(p).some(v=>v===variety)).map(p=>plotTreeCounts(p,records).rows.find(row=>row.variety===variety)!);
+ return rows.some(row=>row.trees===null)?null:rows.reduce((n,row)=>n+row.trees!,0);
+}
+export function varietySeasonStats(records:OrchardRecord[],year:string,variety:string,plotId='all'){
+ const entries=records.filter((r):r is Harvest=>r.kind==='harvest'&&r.variety===variety&&r.date.slice(0,4)===year&&(plotId==='all'||(plotId==='none'?r.plotId===null:r.plotId===plotId)));
+ return {kg:entries.reduce((n,r)=>n+weight(r),0),sales:Math.round(entries.reduce((n,r)=>n+saleValue(r),0)*100)/100,missingPrices:entries.filter(r=>r.pricePerKg==null).length};
+}
 export function applyMutation(farm:Farm,m:Mutation):Farm{
  if(farm.appliedIds.includes(m.requestId))return farm;
  const id=m.action==='delete'?m.id:m.record.id;
@@ -87,12 +111,20 @@ export function applyMutation(farm:Farm,m:Mutation):Farm{
  for(const p of plots){
   const selected=plotVarieties(p);
   if(new Set(selected).size!==selected.length||!selected.includes(p.variety)||selected.some(v=>fruitFor(v)!==plotFruit(p)))throw new Error('Wybierz odmiany jednego gatunku dla kwatery: wiśnie albo czereśnie.');
+  if(p.varietyTrees){
+   if(new Set(p.varietyTrees.map(row=>row.variety)).size!==p.varietyTrees.length||p.varietyTrees.some(row=>!selected.includes(row.variety)))throw new Error('Przypisz liczbę drzew tylko raz do każdej wybranej odmiany.');
+   if(p.varietyTrees.reduce((n,row)=>n+row.trees,0)>p.initialTrees)throw new Error('Suma drzew odmian przekracza początkową liczbę drzew w sadzie.');
+  }
  }
  for(const r of next){
   if('plotId' in r&&r.plotId){
    const p=plots.find(p=>p.id===r.plotId);
    if(!p)throw new Error('Kwatera ma powiązane wpisy lub już nie istnieje.');
    if(r.kind==='harvest'&&!plotVarieties(p).includes(r.variety))throw new Error('Odmiana zbioru musi należeć do kwatery. Nie usuwaj odmiany z zapisanymi zbiorami.');
+   if(r.kind==='trees'&&r.variety){
+    if(!plotVarieties(p).includes(r.variety))throw new Error('Odmiana zmiany liczby drzew musi należeć do sadu. Nie usuwaj odmiany z zapisanymi zmianami.');
+    if(plotTreeCounts(p,[]).rows.find(row=>row.variety===r.variety)?.initial==null)throw new Error('Najpierw uzupełnij początkową liczbę drzew tej odmiany w kwaterze.');
+   }
    if((r.kind==='plan'||r.kind==='treatment')&&r.fruit&&r.fruit!==plotFruit(p))throw new Error('Gatunek zabiegu musi zgadzać się z kwaterą.');
   }
   if(r.kind==='purchase'){
@@ -109,7 +141,12 @@ export function applyMutation(farm:Farm,m:Mutation):Farm{
    if(weight(r)<=0)throw new Error(r.weightKg!=null?'Wpisz dodatnią liczbę kilogramów.':'Wpisz co najmniej jedną skrzynkę.');
   }
  }
- for(const p of plots){if(treesFor(p,next)<0)throw new Error('Liczba usuniętych drzew przekracza stan kwatery.');}
+ for(const p of plots){
+  if(treesFor(p,next)<0)throw new Error('Liczba usuniętych drzew przekracza stan kwatery.');
+  const counts=plotTreeCounts(p,next);
+  if(counts.rows.some(row=>row.trees!==null&&row.trees<0))throw new Error('Liczba usuniętych drzew przekracza stan wybranej odmiany.');
+  if(counts.unassigned<0)throw new Error('Za mało drzew bez przypisanej odmiany. Wybierz odmianę ubytku lub popraw podział drzew w kwaterze.');
+ }
  for(const stock of stocks){if(stockBalance(stock,next)<0)throw new Error(`Za mało środka „${stock.name}” w magazynie. Dodaj zakup lub popraw ilość zużycia.`);}
  const result={records:next,appliedIds:[...farm.appliedIds,m.requestId].slice(-500)};
  if(new TextEncoder().encode(JSON.stringify(result)).length>1500000)throw new Error('Rejestr osiągnął pojemność tej wersji. Wyeksportuj dane i skontaktuj się w sprawie rozszerzenia.');

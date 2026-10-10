@@ -57,3 +57,10 @@ Na tym hoście wrapper npm uruchamiany przez dawny helper Sites błędnie szuka�
 - Dane gospodarstwa mieszczą się w jednym rekordzie D1; limit zabezpieczający wynosi 1,5 MB. Większe gospodarstwa/historyczne rejestry wymagają rozbudowy modelu na oddzielne tabele.
 - Kolejka offline pracuje w jednej aktywnej karcie na urządzeniu. W przeglądarkach z Web Locks druga karta otrzymuje komunikat zamiast możliwości zapisu. Zapisy z różnych urządzeń mają kontrolę wersji po stronie serwera.
 - Kopia JSON jest eksportem, nie ma jeszcze formularza importu.
+
+## Kwatery i ceny zakupów — 10.10.2026
+Podział drzew na odmiany jest dostępny już przy tworzeniu jednej kwatery, a także przy edycji. Można dopisywać własne odmiany, zostawić część drzew bez przypisania i rejestrować ubytki/dosadzenia według odmiany. Suma przypisanych drzew nie może przekroczyć stanu kwatery. Zbiory zapisuje się dla odmiany w kwaterze; statystyki pokazują kg i sprzedaż odmian oraz sumę całej kwatery. Liczby drzew w zestawieniach oznaczają stan bieżący.
+
+Magazyn przyjmuje łączną cenę za podaną ilość zakupu. Cena jednostkowa jest wyliczana automatycznie; wcześniejsze ceny zapisane w danych pozostają zgodne.
+
+Zaliczone: TypeScript, check-domain.ts, check-tree-varieties.ts i build Cloudflare. Przeglądarka: utworzenie jednej kwatery 150 drzew, podział 10/20/30/90, dodanie własnej odmiany Sylvia, odświeżenie i ponowna edycja, zbiór 100 kg i 800 zł widoczny przy odmianie i całej kwaterze, zakup 5 l za 150 zł (30 zł/l) i edycja ceny całkowitej. Sprawdzono formularz przy 390 × 844. Odczyt lokalnego API potwierdził zapis w D1; usunięto wyłącznie trzy własne rekordy testowe. Skan źródeł i paczki nie wykrył hasła ani skonfigurowanego skrótu.

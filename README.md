@@ -2,13 +2,13 @@
 
 Aplikacja do prowadzenia sadów wiśniowych i czereśniowych, dostosowana do telefonu.
 
-- Kwatery jednego gatunku z jedną lub wieloma odmianami czereśni. Starsze kwatery jednoodmianowe zachowują zgodność.
+- Jedna kwatera z wieloma odmianami: już przy dodawaniu podajesz łączną liczbę drzew oraz liczbę drzew każdej odmiany. Możesz dopisywać własne odmiany i później edytować podział. Zbiory odmian sumują się do jednej kwatery; starsze wpisy zachowują zgodność.
 - Wiśnie Łutówka w kilogramach lub skrzynkach 5/10 kg. Czereśnie Wanda, Vega, Techlovan, Burlat, Cordia, Ulster, Regina w skrzynkach.
 - Cena w zł/kg, sprzedaż i średnia ważona masą. Kilogramy gatunków są osobno; finanse sumują się.
 - Porównanie sezonów i kwater w kg i procentach. Sezon 2025 usunięty z list wyboru bez kasowania danych.
 - Opryski, nawożenie, podlewanie, obserwacje, ubytki i dosadzenia.
 - Magazyn, kolejne zakupy i wiele środków w jednym zabiegu. Edycja/usunięcie zabiegu przelicza stan; zapisy z ujemnym stanem są odrzucane, także przy równoległych operacjach.
-- Cena środka w zł/kg lub zł/l, wartość zakupu i średnia ważona cen zakupów. Szacowany koszt zużytych środków można przyciskiem wpisać do kosztu zabiegu.
+- Łączna cena zakupu środka za podaną ilość (np. 150 zł za 5 l); cena jednostkowa i średnia ważona wyliczają się automatycznie. Szacowany koszt zużytych środków można przyciskiem wpisać do kosztu zabiegu.
 - Lista zakupów: `max(0, zużycie w wybranym roku - obecny stan)`, eksport TXT.
 - Osiem głównych faz BBCH, szczegóły zielonego/białego pąka, dodatkowy etap „Po zbiorach” i własny opis.
 - Katalog 18 nazw środków z programów Instytutu Ogrodnictwa 2026. Nawozy i inne środki dodaje się ręcznie. Katalog nazw nie jest zaleceniem stosowania; linki do źródeł i aktualnych etykiet MRiRW są w formularzu.
@@ -30,6 +30,7 @@ Podgląd: http://127.0.0.1:5173/. W nowym checkout należy zbudować aplikację 
 ```sh
 node node_modules/typescript/bin/tsc --noEmit
 node --experimental-strip-types scripts/check-domain.ts
+node --experimental-strip-types scripts/check-tree-varieties.ts
 node scripts/check-api.mjs
 node scripts/run-framework.mjs build
 ```
