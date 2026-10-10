@@ -64,3 +64,5 @@ Podział drzew na odmiany jest dostępny już przy tworzeniu jednej kwatery, a t
 Magazyn przyjmuje łączną cenę za podaną ilość zakupu. Cena jednostkowa jest wyliczana automatycznie; wcześniejsze ceny zapisane w danych pozostają zgodne.
 
 Zaliczone: TypeScript, check-domain.ts, check-tree-varieties.ts i build Cloudflare. Przeglądarka: utworzenie jednej kwatery 150 drzew, podział 10/20/30/90, dodanie własnej odmiany Sylvia, odświeżenie i ponowna edycja, zbiór 100 kg i 800 zł widoczny przy odmianie i całej kwaterze, zakup 5 l za 150 zł (30 zł/l) i edycja ceny całkowitej. Sprawdzono formularz przy 390 × 844. Odczyt lokalnego API potwierdził zapis w D1; usunięto wyłącznie trzy własne rekordy testowe. Skan źródeł i paczki nie wykrył hasła ani skonfigurowanego skrótu.
+
+Publikacja 10.10.2026: kod `b58dca7` wypchnięty do GitHub/main; wdrożenie Cloudflare `89daec54-0106-4a3b-8041-073d69978106`. Test produkcyjny potwierdził logowanie, odczyt istniejących danych i wylogowanie. Publiczny plik aplikacji jest identyczny z przetestowaną paczką. Weryfikacja produkcyjna nie zmieniała wpisów gospodarstwa.
