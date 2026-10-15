@@ -1,0 +1,11 @@
+.site-offer-tab[data-state=inactive]{display:none}
+.offer-fields{border:0;padding:0;margin:0;display:grid;gap:20px;min-width:0}
+.offer-items{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.offer-item{border:1px solid var(--border);border-radius:12px;padding:18px;display:grid;gap:14px}
+.fields .offer-visible{display:flex;align-items:center;gap:10px;font-weight:400;margin:0;min-height:44px}
+.fields .offer-visible input{width:20px;height:20px;min-height:20px;accent-color:#176145}
+.offer-reload{margin-top:20px}.site-offer .toolbar p{margin:0;max-width:650px}
+.offer-quick-publish{justify-self:start}
+.site-power{padding:22px;border:1px solid #b8d1c1;border-radius:14px;background:#f1f7f3;display:grid;grid-template-columns:1fr 130px;gap:16px}.site-power-label{display:flex!important;align-items:center;justify-content:space-between;gap:20px;font-size:18px!important;cursor:pointer}.fields .site-power-label input{appearance:none;width:56px;height:32px;min-height:32px;border:0;border-radius:30px;background:#8a9690;padding:4px;flex-shrink:0;transition:background .15s;cursor:pointer}.site-power-label input:checked{background:#176145}.site-power-label input:before{content:'';display:block;width:24px;height:24px;border-radius:50%;background:white;box-shadow:0 1px 4px #0002;transition:transform .15s}.site-power-label input:checked:before{transform:translateX(24px)}.site-power p{margin:8px 0 0}.site-power .eyebrow{margin:0 0 12px}.season-preview{grid-column:1/-1;text-align:center;padding:24px;background:#fffaf1;border:1px solid #e8dec8;border-radius:12px;color:#452b2c}.season-preview>span{font-size:32px}.season-preview strong{display:block;font-size:24px}.season-preview p{margin:6px 0 0}.season-year{align-self:start}
+@media(max-width:760px){.offer-items{grid-template-columns:1fr}.offer-item{padding:14px}}
+@media(max-width:480px){.site-power{grid-template-columns:1fr;padding:16px}.season-year{max-width:150px}.season-preview strong{font-size:21px}}

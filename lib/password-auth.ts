@@ -68,7 +68,7 @@ export async function passwordAuth(request: Request, env: PasswordEnv): Promise<
     if(token)operations.push(db.prepare('DELETE FROM auth_sessions WHERE token_hash=?').bind(digest(token)));
     operations.push(db.prepare('INSERT INTO auth_sessions (token_hash,owner,expires,password_version) VALUES (?,?,?,?)').bind(digest(next),owner,now+lifetime,version));
     await db.batch(operations);
-    return redirect('/',{'Set-Cookie':sessionCookie(request,next,remembered?lifetime:undefined)});
+    return redirect('/panel',{'Set-Cookie':sessionCookie(request,next,remembered?lifetime:undefined)});
   }
   if(url.pathname==='/api/auth/logout'||url.pathname==='/signout-with-chatgpt') {
     if(request.method!=='POST')return json({error:'Wylogowanie wymaga POST.'},405,{Allow:'POST'});
@@ -81,7 +81,7 @@ export async function passwordAuth(request: Request, env: PasswordEnv): Promise<
     await ensureLoginTables(db);
     session=await db.prepare('SELECT owner FROM auth_sessions WHERE token_hash=? AND expires>? AND password_version=? AND owner=?').bind(digest(token),now,version,owner).first<{owner:string}>();
   }
-  if(loginPath)return session?redirect('/'):loginPage(config.email);
+  if(loginPath)return session?redirect('/panel'):loginPage(config.email);
   if(!session)return url.pathname.startsWith('/api/')?json({error:'Zaloguj się, aby otworzyć rejestr.'},401):redirect('/login');
   if(url.pathname==='/api/auth/session')return json({email:config.email,userId:owner});
   return trustedRequest(request,config.email);
