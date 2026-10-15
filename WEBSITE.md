@@ -2,6 +2,8 @@
 
 Zakładka **Oferta na stronie** pozwala publikować cenę za kilogram, gatunek, nazwę odmiany, dostępność, widoczność oraz komunikat dla klientów. Działa we wdrożeniu na własnym Cloudflare. Cena w ofercie jest niezależna od ceny zapisanej przy zbiorze; nie przelicza danych historycznych.
 
+**Wyłączenie i włączenie strony:** ustaw przełącznik **Strona włączona**, wybierz rok sezonu i kliknij **Opublikuj na stronie**. Wyłączona strona pokazuje tylko „Sezon 2026 zakończony — Zapraszamy w przyszłym roku!” (rok zgodny z ustawieniem) oraz dyskretny link do panelu. Cloudflare zwraca ten ekran bezpośrednio dla publicznych stron HTML, także bez JavaScript. Panel i logowanie pozostają dostępne. Oferta i ceny są zachowane w bazie; ponowne włączenie przywraca pełną stronę. Otwarte karty odświeżają tryb co minutę lub przy powrocie do karty. Po zmianie trybu nie trzeba wdrażać kodu. Dopóki nie klikniesz publikacji, przełącznik jest tylko zmianą w formularzu.
+
 1. Zaloguj się dotychczasowym kontem, otwórz **Oferta na stronie**.
 2. Uzupełnij ceny i wybierz: **Dostępne**, **Wkrótce**, **Wyprzedane** lub **Sezon zakończony**. Dostępna odmiana wymaga ceny większej od zera. Ukrywanie odmiany usuwa ją także z publicznego API.
 3. Kliknij **Opublikuj na stronie**. Przycisk od razu zapisuje publiczną ofertę. Strona klienta odczytuje ją po odświeżeniu i co minutę. Zapis wymaga internetu; komunikat o błędzie pozostawia formularz do ponownej próby. Konflikt dwóch kart wymaga jawnego wczytania aktualnej oferty.

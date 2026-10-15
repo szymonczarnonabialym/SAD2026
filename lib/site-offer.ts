@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const availabilityLabels = {available:'Dostępne',soon:'Wkrótce',sold_out:'Wyprzedane',season_over:'Sezon zakończony'} as const;
 export const siteOfferSchema = z.object({
+  siteEnabled:z.boolean().default(true),
+  season:z.number().int().min(2020).max(2100).default(2026),
   message:z.string().trim().max(500),
   items:z.array(z.object({
     id:z.string().regex(/^[a-z0-9-]{1,64}$/),
@@ -13,11 +15,11 @@ export const siteOfferSchema = z.object({
   }).strict()).max(40),
 }).strict().superRefine((data,ctx)=>{
   if(new Set(data.items.map(i=>i.id)).size!==data.items.length)ctx.addIssue({code:'custom',message:'Odmiany muszą mieć różne identyfikatory.'});
-  data.items.forEach((item,index)=>{if(item.status==='available'&&item.pricePerKg===null)ctx.addIssue({code:'custom',path:['items',index,'pricePerKg'],message:'Podaj cenę dostępnej odmiany.'})});
+  data.items.forEach((item,index)=>{if(data.siteEnabled&&item.status==='available'&&item.pricePerKg===null)ctx.addIssue({code:'custom',path:['items',index,'pricePerKg'],message:'Podaj cenę dostępnej odmiany.'})});
 });
 export type SiteOffer = z.infer<typeof siteOfferSchema>;
 export type OfferSnapshot = {offer:SiteOffer;revision:number;updatedAt:string|null};
-export const initialOffer:SiteOffer={message:'',items:[
+export const initialOffer:SiteOffer={siteEnabled:true,season:2026,message:'',items:[
   {id:'lutowka',fruit:'sour',name:'Łutówka',pricePerKg:10,status:'season_over',visible:true},
   ...['Vanda','Vega','Burlat','Kordia','Techlovan','Ulster','Regina'].map(name=>({id:name.toLowerCase(),fruit:'sweet' as const,name,pricePerKg:null,status:'season_over' as const,visible:true})),
 ]};
@@ -36,7 +38,8 @@ export async function publicOffer(request:Request,db?:D1Database):Promise<Respon
   const snapshot=await readOffer(db);
   if(!snapshot.updatedAt)return json({error:'Oferta nie została jeszcze opublikowana.'},503);
   // Explicit projection prevents hidden varieties and any future private fields leaking.
-  const response=json({message:snapshot.offer.message,updatedAt:snapshot.updatedAt,items:snapshot.offer.items.filter(i=>i.visible).map(({id,fruit,name,pricePerKg,status})=>({id,fruit,name,pricePerKg,status}))});
+  const {siteEnabled,season}=snapshot.offer;
+  const response=json({siteEnabled,season,message:siteEnabled?snapshot.offer.message:'',updatedAt:snapshot.updatedAt,items:siteEnabled?snapshot.offer.items.filter(i=>i.visible).map(({id,fruit,name,pricePerKg,status})=>({id,fruit,name,pricePerKg,status})):[]});
   return request.method==='HEAD'?new Response(null,{status:response.status,headers:response.headers}):response;
 }
 export async function manageOffer(request:Request,db:D1Database):Promise<Response>{

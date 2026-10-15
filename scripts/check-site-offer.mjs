@@ -24,11 +24,18 @@ try{
   assert.equal((await save({...offer,records:[{private:true}]})).status,400);
   assert.equal((await save(offer)).status,200);
   assert.equal((await save({...offer,message:'Lost update'})).status,409);
-  const published=await (await call('/api/public/offer')).json();assert.equal(published.items.length,1);assert.equal(published.items[0].name,'Kordia');assert.equal(published.items[0].pricePerKg,15.5);assert.ok(!JSON.stringify(published).includes('Ukryta'));assert.deepEqual(Object.keys(published).sort(),['items','message','updatedAt']);
+  const published=await (await call('/api/public/offer')).json();assert.equal(published.items.length,1);assert.equal(published.items[0].name,'Kordia');assert.equal(published.items[0].pricePerKg,15.5);assert.ok(!JSON.stringify(published).includes('Ukryta'));assert.deepEqual(Object.keys(published).sort(),['items','message','season','siteEnabled','updatedAt']);assert.equal(published.siteEnabled,true);assert.equal(published.season,2026);
   assert.equal((await call('/api/public/offer',{method:'PUT'})).status,405);
   assert.equal(await (await call('/api/public/offer',{method:'HEAD'})).text(),'');
   const offline={...offer,items:offer.items.map(i=>({...i,status:'sold_out'}))};assert.equal((await save(offline,1)).status,200);
   assert.equal((await (await call('/api/public/offer')).json()).items[0].status,'sold_out');
   const writes=await Promise.all([save(offer,2),save(offer,2)]);assert.deepEqual(writes.map(r=>r.status).sort(),[200,409]);
+  assert.equal((await save({...offer,siteEnabled:false,season:2026},3)).status,200);
+  const closed=await (await call('/api/public/offer')).json();assert.equal(closed.siteEnabled,false);assert.deepEqual(closed.items,[]);assert.equal(closed.message,'');
+  const retained=await (await call('/api/site-offer',{headers})).json();assert.equal(retained.offer.items[0].pricePerKg,15.5);assert.equal(retained.offer.items[0].status,'available');
+  assert.equal((await call('/panel',{headers})).status,200,'Closing the public site must not close the private panel');
+  assert.equal((await save({...retained.offer,siteEnabled:true},4)).status,200);
+  assert.equal((await (await call('/api/public/offer')).json()).items[0].pricePerKg,15.5);
+  assert.equal((await save({...offer,siteEnabled:'false'},5)).status,400);
   console.log('PASS: private editor, forged identity rejected, CSRF, validation, public field projection, hidden varieties, publication and concurrent-write protection. Isolated workerd/D1 only.');
 }finally{await worker.dispose()}
