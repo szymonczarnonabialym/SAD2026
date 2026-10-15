@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+import {Miniflare} from 'miniflare';
+import {randomBytes,scryptSync} from 'node:crypto';
+const salt=randomBytes(16).toString('hex'),password=randomBytes(20).toString('hex');
+const config=JSON.stringify({email:'fixture@example.test',passwordHash:`scrypt$16384$8$5$${salt}$${scryptSync(password,salt,32,{N:16384,r:8,p:5,maxmem:32*1024*1024}).toString('hex')}`});
+const compiled=await build({stdin:{contents:`import {passwordAuth} from './lib/password-auth'; import {manageOffer,publicOffer} from './lib/site-offer'; export default {async fetch(r,e){const p=new URL(r.url).pathname;if(p==='/api/public/offer')return publicOffer(r,e.DB);const a=await passwordAuth(r,e);if(a instanceof Response)return a;if(p==='/api/site-offer')return manageOffer(a,e.DB);return Response.json({privateFarm:true})}}`,resolveDir:process.cwd(),loader:'ts'},bundle:true,write:false,platform:'neutral',format:'esm',external:['node:*']});
+const worker=new Miniflare({modules:true,script:compiled.outputFiles[0].text,compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{SAD_LOGIN_CONFIG:config}});
+const base='https://sad.example.test';
+try{
+  const call=(path,init)=>worker.dispatchFetch(base+path,init);
+  assert.equal((await call('/api/public/offer')).status,503,'No fabricated availability before first publication');
+  assert.equal((await call('/api/site-offer')).status,401);
+  assert.equal((await call('/api/farm',{headers:{'oai-authenticated-user-id':'forged','oai-authenticated-user-email':'fixture@example.test'}})).status,401);
+  const login=await call('/api/auth/login',{method:'POST',redirect:'manual',headers:{Origin:base,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({email:'fixture@example.test',password})});
+  assert.equal(login.status,303);assert.equal(login.headers.get('location'),'/panel');
+  const cookie=login.headers.get('set-cookie').split(';')[0],headers={Cookie:cookie,Origin:base,'Content-Type':'application/json'};
+  const draft=await (await call('/api/site-offer',{headers})).json();assert.equal(draft.revision,0);
+  const offer={message:'Dzisiejsza oferta',items:[{id:'kordia',name:'Kordia',fruit:'sweet',pricePerKg:15.5,status:'available',visible:true},{id:'hidden',name:'Ukryta',fruit:'sour',pricePerKg:null,status:'season_over',visible:false}]};
+  const save=(value,revision=0,extra={})=>call('/api/site-offer',{method:'PUT',headers:{...headers,...extra},body:JSON.stringify({offer:value,revision})});
+  assert.equal((await save(offer,0,{Origin:'https://evil.test'})).status,403);
+  assert.equal((await save({...offer,items:[{...offer.items[0],pricePerKg:null}]})).status,400);
+  assert.equal((await save({...offer,items:[{...offer.items[0],pricePerKg:-1}]})).status,400);
+  assert.equal((await save({...offer,records:[{private:true}]})).status,400);
+  assert.equal((await save(offer)).status,200);
+  assert.equal((await save({...offer,message:'Lost update'})).status,409);
+  const published=await (await call('/api/public/offer')).json();assert.equal(published.items.length,1);assert.equal(published.items[0].name,'Kordia');assert.equal(published.items[0].pricePerKg,15.5);assert.ok(!JSON.stringify(published).includes('Ukryta'));assert.deepEqual(Object.keys(published).sort(),['items','message','updatedAt']);
+  assert.equal((await call('/api/public/offer',{method:'PUT'})).status,405);
+  assert.equal(await (await call('/api/public/offer',{method:'HEAD'})).text(),'');
+  const offline={...offer,items:offer.items.map(i=>({...i,status:'sold_out'}))};assert.equal((await save(offline,1)).status,200);
+  assert.equal((await (await call('/api/public/offer')).json()).items[0].status,'sold_out');
+  const writes=await Promise.all([save(offer,2),save(offer,2)]);assert.deepEqual(writes.map(r=>r.status).sort(),[200,409]);
+  console.log('PASS: private editor, forged identity rejected, CSRF, validation, public field projection, hidden varieties, publication and concurrent-write protection. Isolated workerd/D1 only.');
+}finally{await worker.dispose()}
