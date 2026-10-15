@@ -1,5 +1,5 @@
 // @ts-ignore Node's built-in TypeScript runner requires the source extension.
-import {weight,fruitFor,plotVarieties,type OrchardRecord} from './orchard.ts';
+import {weight,saleValue,fruitFor,plotVarieties,type OrchardRecord} from './orchard.ts';
 
 export function harvestTimeline(records:OrchardRecord[],currentYear:string,plotId='all'){
  const inScope=(id:string|null)=>plotId==='all'||(plotId==='none'?id===null:id===plotId);
@@ -19,5 +19,14 @@ export function harvestTimeline(records:OrchardRecord[],currentYear:string,plotI
   }
   return row;
  });
- return {data,names,hasHarvests:harvests.length>0};
+ const salesData=data.map(({year})=>{
+  const row:Record<string,number|null>={year,sour:null,sweet:null};
+  for(const r of harvests)if(r.kind==='harvest'&&Number(r.date.slice(0,4))===year&&r.pricePerKg!=null){
+   const fruit=fruitFor(r.variety);
+   row[fruit]=Math.round(((row[fruit]??0)+saleValue(r))*100)/100;
+  }
+  return row;
+ });
+ const missingPrices=harvests.filter(r=>r.kind==='harvest'&&r.pricePerKg==null).length;
+ return {data,salesData,missingPrices,names,hasHarvests:harvests.length>0};
 }

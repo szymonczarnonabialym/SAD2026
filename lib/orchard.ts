@@ -11,7 +11,7 @@ const stockUnit=z.enum(['kg','l']);
 const materialSchema=z.object({stockId:z.string().uuid(),amount:num.positive(),unit:stockUnit});
 export const recordSchema = z.discriminatedUnion('kind',[
  z.object({...base,kind:z.literal('plot'),name:z.string().trim().min(1).max(100),variety,varieties:z.array(variety).min(1).max(50).optional(),varietyTrees:z.array(z.object({variety,trees:count})).max(50).optional(),area:z.number().min(0).max(100000),initialTrees:count,plantedYear:z.number().int().min(1900).max(2200).nullable(),rootstock:z.string().max(100).default('')}),
- z.object({...base,kind:z.literal('harvest'),plotId:z.string().uuid().nullable(),variety,boxes5:count,boxes10:count,weightKg:num.nullable().optional(),pricePerKg:num.nullable().optional()}),
+ z.object({...base,kind:z.literal('harvest'),plotId:z.string().uuid().nullable(),variety,boxes5:count,boxes10:count,weightKg:num.int('Wpisz pełne kilogramy, bez części po przecinku.').nullable().optional(),pricePerKg:num.nullable().optional()}),
  z.object({...base,kind:z.literal('treatment'),plotId:z.string().uuid().nullable(),treatment:z.enum(treatments),product:z.string().max(200),amount:num,unit:z.enum(['kg','l','g','ml','m³','godz.']),cost:num,materials:z.array(materialSchema).max(20).optional(),fruit:z.enum(['sour','sweet']).nullable().optional(),stage:z.string().max(160).nullable().optional()}),
  z.object({...base,kind:z.literal('stock'),name:z.string().trim().min(1).max(160),category:z.enum(['protection','fertilizer']),unit:stockUnit,initialAmount:num,minimum:num.default(0),pricePerUnit:num.nullable().optional()}),
  z.object({...base,kind:z.literal('purchase'),stockId:z.string().uuid(),amount:num.positive(),unit:stockUnit,pricePerUnit:num.nullable().optional()}),
@@ -104,6 +104,8 @@ export function applyMutation(farm:Farm,m:Mutation):Farm{
  if((prev?.version??0)!==m.expectedVersion)throw new Error('Ten wpis zmienił się na innym urządzeniu. Odśwież dane i popraw wpis ponownie.');
  if(m.action==='delete'&&!prev)throw new Error('Nie znaleziono wpisu.');
  if(m.action==='upsert'&&prev&&prev.kind!==m.record.kind)throw new Error('Nie można zmienić rodzaju wpisu.');
+ // Validate the changed entry only; historical fractional weights remain readable.
+ if(m.action==='upsert'&&m.record.kind==='harvest'&&m.record.weightKg!=null&&!Number.isInteger(m.record.weightKg))throw new Error('Wpisz pełne kilogramy, bez części po przecinku.');
  const next=farm.records.filter(r=>r.id!==id);
  if(m.action==='upsert')next.push({...m.record,version:m.expectedVersion+1});
  const plots=next.filter((r):r is Plot=>r.kind==='plot');
