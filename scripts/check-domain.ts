@@ -16,8 +16,14 @@ farm=applyMutation(farm,add({...t,treeChange:-3}));assert.equal(treesFor(p,farm.
 assert.throws(()=>applyMutation(farm,{action:'delete',id:p.id,expectedVersion:1,requestId:crypto.randomUUID()}),/powiązane/);
 assert.equal(recordSchema.safeParse({...h,boxes5:-1}).success,false);assert.equal(recordSchema.safeParse({...h,boxes10:0.5}).success,false);assert.equal(recordSchema.safeParse({...h,date:'2026-02-30'}).success,false);
 console.log('PASS: mass, idempotency, stale edit, variety, zero harvest, tree limits, references, invalid dates and counts');
-const loose:OrchardRecord={...h,id:crypto.randomUUID(),plotId:null,variety:'Łutówka',boxes5:0,boxes10:0,weightKg:125.5,pricePerKg:4.2};
-assert.equal(weight(loose),125.5);assert.equal(saleValue(loose),527.1);
+const loose:OrchardRecord={...h,id:crypto.randomUUID(),plotId:null,variety:'Łutówka',boxes5:0,boxes10:0,weightKg:125,pricePerKg:4.2};
+assert.equal(weight(loose),125);assert.equal(saleValue(loose),525);
+const legacy={...loose,weightKg:125.5};
+assert.equal(weight(legacy),125.5);assert.equal(saleValue(legacy),527.1);
+assert.equal(recordSchema.safeParse(legacy).success,false);
+assert.throws(()=>applyMutation(farm,add(legacy)),/pełne kilogramy/);
+const legacyFarm=applyMutation({records:[{...legacy,version:1}],appliedIds:[]},add({...loose,id:crypto.randomUUID()}));
+assert.equal(weight(legacyFarm.records[0]),125.5);
 assert.equal(saleValue({...h,pricePerKg:2.5}),875);
 assert.equal(saleValue(h),0);assert.equal(recordSchema.parse(h).kind,'harvest');
 assert.equal(recordSchema.safeParse({...loose,pricePerKg:-1}).success,false);

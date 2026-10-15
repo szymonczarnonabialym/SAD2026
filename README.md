@@ -5,6 +5,8 @@ Aplikacja do prowadzenia sadów wiśniowych i czereśniowych, dostosowana do tel
 - Jedna kwatera z wieloma odmianami: już przy dodawaniu podajesz łączną liczbę drzew oraz liczbę drzew każdej odmiany. Możesz dopisywać własne odmiany i później edytować podział. Zbiory odmian sumują się do jednej kwatery; starsze wpisy zachowują zgodność.
 - Wiśnie Łutówka w kilogramach lub skrzynkach 5/10 kg. Czereśnie Wanda, Vega, Techlovan, Burlat, Cordia, Ulster, Regina w skrzynkach.
 - Cena w zł/kg, sprzedaż i średnia ważona masą. Kilogramy gatunków są osobno; finanse sumują się.
+- Wykres przychodów rok do roku pokazuje osobne linie dla wiśni i czereśni, liczone z masy × ceny sprzedaży. Brak ceny pozostaje brakiem danych; częściowe sumy mają komunikat. Przychód jest kwotą przed odjęciem kosztów.
+- Nowe i edytowane zbiory przyjmują pełne kilogramy; formularz i API odrzucają ułamki. Widoki zbiorów pokazują kg bez miejsc po przecinku. Historyczne ułamkowe masy pozostają zapisane bez zmian, wraz z dotychczasową wartością sprzedaży i eksportem.
 - Porównanie sezonów i kwater w kg i procentach. Sezon 2025 usunięty z list wyboru bez kasowania danych.
 - W zakładce „Statystyki” automatyczne wykresy liniowe zbiorów rok do roku: wiśnie i czereśnie osobno, odmiany czereśni jako oddzielne serie, filtr kwatery oraz włączanie i wyłączanie odmian. Bez wpisów jest komunikat; jeden sezon daje punkty, kolejne tworzą linie. Brak zapisów w sezonie jest przerwą, a nie zerowym plonem. Przycisk „Porównanie w tabelach” zachowuje dotychczasowy widok.
 - Opryski, nawożenie, podlewanie, obserwacje, ubytki i dosadzenia.
