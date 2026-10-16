@@ -1,4 +1,4 @@
-const CACHE='moj-sad-shell-v3';
+const CACHE='moj-sad-shell-v4';
 self.addEventListener('install',()=>self.skipWaiting());
 self.addEventListener('message',e=>{if(e.data?.type==='warm')e.waitUntil((async()=>{const c=await caches.open(CACHE);const path=new URL(e.source?.url||self.location.origin).pathname;const home=path.startsWith('/panel')?'/panel':'/';const urls=[home,...(Array.isArray(e.data.urls)?e.data.urls:[])].filter(v=>{try{const u=new URL(v,self.location.origin);return u.origin===self.location.origin&&(u.pathname==='/'||u.pathname==='/panel'||/\.(js|css|png|svg)$/.test(u.pathname))}catch{return false}});await Promise.allSettled(urls.map(async u=>{const r=await fetch(u);if(r.ok&&!r.redirected)await c.put(u,r)}))})())});
 self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys())if(k.startsWith('moj-sad-shell-')&&k!==CACHE)await caches.delete(k);await self.clients.claim()})()));
