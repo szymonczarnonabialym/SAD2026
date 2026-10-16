@@ -12,7 +12,7 @@ const materialSchema=z.object({stockId:z.string().uuid(),amount:num.positive(),u
 export const recordSchema = z.discriminatedUnion('kind',[
  z.object({...base,kind:z.literal('plot'),name:z.string().trim().min(1).max(100),variety,varieties:z.array(variety).min(1).max(50).optional(),varietyTrees:z.array(z.object({variety,trees:count})).max(50).optional(),area:z.number().min(0).max(100000),initialTrees:count,plantedYear:z.number().int().min(1900).max(2200).nullable(),rootstock:z.string().max(100).default('')}),
  z.object({...base,kind:z.literal('harvest'),plotId:z.string().uuid().nullable(),variety,boxes5:count,boxes10:count,weightKg:num.int('Wpisz pełne kilogramy, bez części po przecinku.').nullable().optional(),pricePerKg:num.nullable().optional()}),
- z.object({...base,kind:z.literal('treatment'),plotId:z.string().uuid().nullable(),treatment:z.enum(treatments),product:z.string().max(200),amount:num,unit:z.enum(['kg','l','g','ml','m³','godz.']),cost:num,materials:z.array(materialSchema).max(20).optional(),fruit:z.enum(['sour','sweet']).nullable().optional(),stage:z.string().max(160).nullable().optional()}),
+ z.object({...base,kind:z.literal('treatment'),plotId:z.string().uuid().nullable(),treatment:z.enum(treatments),product:z.string().max(200),amount:num,unit:z.enum(['kg','l','g','ml','m³','godz.']),cost:num,costSource:z.literal('inventory').optional(),materials:z.array(materialSchema).max(20).optional(),fruit:z.enum(['sour','sweet']).nullable().optional(),stage:z.string().max(160).nullable().optional()}),
  z.object({...base,kind:z.literal('stock'),name:z.string().trim().min(1).max(160),category:z.enum(['protection','fertilizer']),unit:stockUnit,initialAmount:num,minimum:num.default(0),pricePerUnit:num.nullable().optional()}),
  z.object({...base,kind:z.literal('purchase'),stockId:z.string().uuid(),amount:num.positive(),unit:stockUnit,pricePerUnit:num.nullable().optional()}),
  z.object({...base,kind:z.literal('plan'),plotId:z.string().uuid().nullable(),name:z.string().trim().min(1).max(160),fruit:z.enum(['sour','sweet']),stage:z.string().max(160).nullable().optional(),leadDays:z.number().int().min(0).max(30).default(7),completed:z.boolean().default(false)}),
@@ -77,6 +77,19 @@ export function stockCosts(stock:Stock,records:OrchardRecord[]){
  return {paid,average,missingPrices,estimatedValue:average!=null&&missingPrices===0?Math.round(stockBalance(stock,records)*average*100)/100:null};
 }
 export function shoppingList(records:OrchardRecord[],year:string){return records.filter((r):r is Stock=>r.kind==='stock').map(stock=>{const used=usedStock(stock.id,records,year),balance=stockBalance(stock,records);return {stock,used,balance,toBuy:roundQuantity(Math.max(0,used-balance))}})}
+// Save a cost snapshot using purchases known on the treatment date. Later purchases
+// must not change the cost of an already recorded treatment.
+export function materialCost(materials:z.infer<typeof materialSchema>[],records:OrchardRecord[],onDate:string){
+ const dated=records.filter(r=>r.date<=onDate),missingPrices:string[]=[];
+ let total=0;
+ for(const material of materials){
+  const stock=dated.find((r):r is Stock=>r.kind==='stock'&&r.id===material.stockId);
+  const prices=stock?stockCosts(stock,dated):null;
+  if(!prices||prices.average===null||prices.missingPrices>0)missingPrices.push(stock?.name??'Wybrany środek (sprawdź datę zakupu)');
+  else total+=material.amount*prices.average;
+ }
+ return {cost:missingPrices.length?null:Math.round((total+Number.EPSILON)*100)/100,missingPrices};
+}
 export function reminderStarts(plan:Plan){return new Date(Date.parse(plan.date+'T12:00:00Z')-plan.leadDays*86400000).toISOString().slice(0,10)}
 export function duePlans(records:OrchardRecord[],onDate=today()){return records.filter((r):r is Plan=>r.kind==='plan'&&!r.completed&&reminderStarts(r)<=onDate).sort((a,b)=>a.date.localeCompare(b.date))}
 export function treesFor(p:Plot,records:OrchardRecord[]){return p.initialTrees+records.reduce((n,r)=>n+(r.kind==='trees'&&r.plotId===p.id?r.treeChange:0),0)}
@@ -99,6 +112,13 @@ export function varietySeasonStats(records:OrchardRecord[],year:string,variety:s
 }
 export function applyMutation(farm:Farm,m:Mutation):Farm{
  if(farm.appliedIds.includes(m.requestId))return farm;
+ if(m.action==='upsert'&&m.record.kind==='treatment'&&m.record.costSource==='inventory'){
+  if(!['Oprysk','Nawożenie'].includes(m.record.treatment)||!m.record.materials?.length)throw new Error('Wybierz z magazynu środek lub nawóz i podaj zużytą ilość.');
+  const calculated=materialCost(m.record.materials,farm.records,m.record.date);
+  if(calculated.cost===null)throw new Error('Uzupełnij cenę zakupu w magazynie: '+calculated.missingPrices.join(', '));
+  if(!Number.isFinite(calculated.cost)||calculated.cost>100000000)throw new Error('Wyliczony koszt przekracza dopuszczalny zakres. Sprawdź ilości i ceny.');
+  m={...m,record:{...m.record,cost:calculated.cost}};
+ }
  const id=m.action==='delete'?m.id:m.record.id;
  const prev=farm.records.find(r=>r.id===id);
  if((prev?.version??0)!==m.expectedVersion)throw new Error('Ten wpis zmienił się na innym urządzeniu. Odśwież dane i popraw wpis ponownie.');
