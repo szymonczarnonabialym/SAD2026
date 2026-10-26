@@ -11,6 +11,7 @@ Aplikacja do prowadzenia sadów wiśniowych i czereśniowych, dostosowana do tel
 - W zakładce „Statystyki” automatyczne wykresy liniowe zbiorów rok do roku: wiśnie i czereśnie osobno, odmiany czereśni jako oddzielne serie, filtr kwatery oraz włączanie i wyłączanie odmian. Bez wpisów jest komunikat; jeden sezon daje punkty, kolejne tworzą linie. Brak zapisów w sezonie jest przerwą, a nie zerowym plonem. Przycisk „Porównanie w tabelach” zachowuje dotychczasowy widok.
 - Opryski, nawożenie, podlewanie, obserwacje, ubytki i dosadzenia.
 - Magazyn, kolejne zakupy i wiele środków w jednym zabiegu. Edycja/usunięcie zabiegu przelicza stan; zapisy z ujemnym stanem są odrzucane, także przy równoległych operacjach.
+- Przy dodawaniu można wybrać kolejny zakup zapisanej pozycji, bez powtarzania nazwy. W zabiegu wybiera się najpierw rodzaj (środek ochrony roślin albo nawóz), potem pozycję z magazynu. Nazwy użytych preparatów widać w nagłówku wpisu. Ceny jednostkowe wyświetlają się z dwoma miejscami po przecinku; precyzja wyliczania kosztów pozostaje zachowana.
 - Łączna cena zakupu środka za podaną ilość (np. 150 zł za 5 l); cena jednostkowa i średnia ważona wyliczają się automatycznie. Szacowany koszt zużytych środków można przyciskiem wpisać do kosztu zabiegu.
 - Lista zakupów: `max(0, zużycie w wybranym roku - obecny stan)`, eksport TXT.
 - Osiem głównych faz BBCH, szczegóły zielonego/białego pąka, dodatkowy etap „Po zbiorach” i własny opis.
