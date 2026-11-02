@@ -1,7 +1,8 @@
 'use client';
 import {useState,lazy,Suspense} from 'react';
 const OrchardHarvestCharts=lazy(()=>import('./orchard-harvest-charts'));
-import {compareSeasons,seasonStats,plotFruit,plotVarieties,changeFrom,availableVarieties,varietySeasonStats,treesForVariety,type OrchardRecord,type Plot,type Fruit} from '@/lib/orchard';
+const OrchardSoil=lazy(()=>import('./orchard-soil'));
+import {compareSeasons,seasonStats,plotFruit,plotVarieties,changeFrom,availableVarieties,varietySeasonStats,treesForVariety,type OrchardRecord,type Plot,type Fruit,type Kind} from '@/lib/orchard';
 
 const fmtKg=(n:number)=>new Intl.NumberFormat('pl-PL',{maximumFractionDigits:0}).format(n);
 const fmt=(n:number)=>new Intl.NumberFormat('pl-PL',{maximumFractionDigits:2}).format(n);
@@ -11,8 +12,8 @@ function Difference({previous,current}:{previous:number,current:number}){
  return <span className={change.kg>0?'change positive':change.kg<0?'change negative':'change'}>{change.kg>0?'+':''}{fmtKg(change.kg)} kg<br/><small>{change.percent==null?'Brak podstawy do %':`${change.percent>0?'+':''}${fmt(change.percent)}%`}</small></span>;
 }
 
-export default function OrchardStatistics({records,plots,year,years}:{records:OrchardRecord[],plots:Plot[],year:string,years:string[]}){
- const [view,setView]=useState<'charts'|'tables'>('charts');
+export default function OrchardStatistics({records,plots,year,years,soil}:{records:OrchardRecord[],plots:Plot[],year:string,years:string[],soil:{disabled:boolean,pending:Set<string>,onAdd:(kind:Kind,r?:OrchardRecord)=>void,onDelete:(r:OrchardRecord)=>void}}){
+ const [view,setView]=useState<'charts'|'tables'|'soil'>('charts');
  const [baseline,setBaseline]=useState<string|null>(null),[plotId,setPlotId]=useState('all');
  const previousYear=baseline??years.find(y=>y!==year)??year;
  const comparison=compareSeasons(records,previousYear,year,plotId);
@@ -33,8 +34,8 @@ export default function OrchardStatistics({records,plots,year,years}:{records:Or
  });
  return <>
   <div className="toolbar comparison-controls">{view==='tables'&&<div><label htmlFor="comparison-year" className="field-label">Porównaj z sezonem</label><select id="comparison-year" value={previousYear} onChange={e=>setBaseline(e.target.value)}>{options.map(y=><option key={y} value={y}>{y}</option>)}</select></div>}<div><label htmlFor="comparison-plot" className="field-label">Kwatera</label><select id="comparison-plot" value={plotId} onChange={e=>setPlotId(e.target.value)}><option value="all">Wszystkie kwatery</option>{plots.map(p=><option value={p.id} key={p.id}>{p.name} · {fruitName(plotFruit(p))}</option>)}<option value="none">Bez przypisanej kwatery</option></select></div></div>
-  <div className="button-group statistics-view" role="group" aria-label="Widok statystyk"><button className={view==='charts'?'button':'button secondary'} aria-pressed={view==='charts'} onClick={()=>setView('charts')}>Wykresy liniowe</button><button className={view==='tables'?'button':'button secondary'} aria-pressed={view==='tables'} onClick={()=>setView('tables')}>Porównanie w tabelach</button></div>
-  {view==='charts'?<Suspense fallback={<p className="notice">Wczytywanie wykresów…</p>}><OrchardHarvestCharts records={records} plotId={plotId} currentYear={new Date().getFullYear().toString()} fruits={shownFruits}/></Suspense>:<>
+  <div className="button-group statistics-view" role="group" aria-label="Widok statystyk"><button className={view==='charts'?'button':'button secondary'} aria-pressed={view==='charts'} onClick={()=>setView('charts')}>Wykresy liniowe</button><button className={view==='tables'?'button':'button secondary'} aria-pressed={view==='tables'} onClick={()=>setView('tables')}>Porównanie w tabelach</button><button className={view==='soil'?'button':'button secondary'} aria-pressed={view==='soil'} onClick={()=>setView('soil')}>Badania gleby</button></div>
+  {view==='soil'?<Suspense fallback={<p className="notice">Wczytywanie badań gleby…</p>}><OrchardSoil records={records} plots={plots} plotId={plotId} {...soil}/></Suspense>:view==='charts'?<Suspense fallback={<p className="notice">Wczytywanie wykresów…</p>}><OrchardHarvestCharts records={records} plotId={plotId} currentYear={new Date().getFullYear().toString()} fruits={shownFruits}/></Suspense>:<>
   {previousYear===year&&<p className="notice">Wybrano ten sam sezon po obu stronach. Wybierz wcześniejszy rok, aby zobaczyć zmianę.</p>}
   <div className="comparison-cards">{shownFruits.map(fruit=><section className={'panel comparison-card '+fruit} key={fruit}><h2>{fruitName(fruit)}</h2><div className="season-pair"><div><span>{previousYear}</span><strong>{fmtKg(comparison.previous[fruit].kg)} <small>kg</small></strong><span>{comparison.previous[fruit].entries} wpisów</span></div><div><span>{year}</span><strong>{fmtKg(comparison.current[fruit].kg)} <small>kg</small></strong><span>{comparison.current[fruit].entries} wpisów</span></div></div><Difference previous={comparison.previous[fruit].kg} current={comparison.current[fruit].kg}/></section>)}</div>
   <p className="progress-note">Kilogramy wiśni i czereśni liczymy osobno. Brak wpisów oznacza 0 zapisanych kg. Trwający sezon porównujesz z całym wybranym sezonem.</p>

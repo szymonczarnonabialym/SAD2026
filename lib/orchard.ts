@@ -1,4 +1,6 @@
 import { z } from 'zod';
+// @ts-ignore Node TypeScript runner needs source extensions.
+import {soilValuesSchema,hasSoilValues} from './soil.ts';
 export const varieties = ['Łutówka','Wanda','Vega','Techlovan','Burlat','Cordia','Ulster','Regina'] as const;
 export const treatments = ['Nawożenie','Podlewanie','Oprysk','Cięcie','Koszenie','Przerzedzanie','Odchwaszczanie','Inny zabieg'] as const;
 export const activeTreatments = ['Oprysk','Nawożenie','Podlewanie'] as const;
@@ -17,7 +19,8 @@ export const recordSchema = z.discriminatedUnion('kind',[
  z.object({...base,kind:z.literal('purchase'),stockId:z.string().uuid(),amount:num.positive(),unit:stockUnit,pricePerUnit:num.nullable().optional()}),
  z.object({...base,kind:z.literal('plan'),plotId:z.string().uuid().nullable(),name:z.string().trim().min(1).max(160),fruit:z.enum(['sour','sweet']),stage:z.string().max(160).nullable().optional(),leadDays:z.number().int().min(0).max(30).default(7),completed:z.boolean().default(false)}),
  z.object({...base,kind:z.literal('trees'),plotId:z.string().uuid(),variety:variety.nullable().optional(),treeChange:z.number().int().min(-1000000).max(1000000).refine(v=>v!==0)}),
- z.object({...base,kind:z.literal('observation'),plotId:z.string().uuid().nullable(),name:z.string().trim().min(1).max(160)})
+ z.object({...base,kind:z.literal('observation'),plotId:z.string().uuid().nullable(),name:z.string().trim().min(1).max(160)}),
+ z.object({...base,kind:z.literal('soil'),plotId:z.string().uuid().nullable(),depth:z.string().trim().max(40).default(''),lab:z.string().trim().max(160).default(''),soilCategory:z.enum(['very-light','light','medium','heavy']).nullable().optional(),values:soilValuesSchema})
 ]);
 export type OrchardRecord=z.infer<typeof recordSchema>;
 export type Plot=Extract<OrchardRecord,{kind:'plot'}>;
@@ -158,6 +161,7 @@ export function applyMutation(farm:Farm,m:Mutation):Farm{
    if(new Set(r.materials.map(m=>m.stockId)).size!==r.materials.length)throw new Error('Wpisz każdy środek tylko raz w jednym zabiegu.');
    for(const m of r.materials){const stock=stocks.find(s=>s.id===m.stockId);if(!stock)throw new Error('Środek ma powiązane zabiegi lub już nie istnieje.');if(stock.unit!==m.unit)throw new Error('Nie zmieniaj jednostki środka z zapisanym zużyciem.');}
   }
+  if(r.kind==='soil'&&!hasSoilValues(r.values))throw new Error('Wpisz co najmniej jeden wynik badania gleby.');
   if(r.kind==='harvest'){
    if(r.weightKg!=null&&(r.variety!=='Łutówka'||r.boxes5!==0||r.boxes10!==0))throw new Error('Kilogramy wpisuj dla wiśni, zamiast liczby skrzynek.');
    if(weight(r)<=0)throw new Error(r.weightKg!=null?'Wpisz dodatnią liczbę kilogramów.':'Wpisz co najmniej jedną skrzynkę.');

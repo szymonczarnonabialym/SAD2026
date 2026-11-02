@@ -6,6 +6,7 @@ Aplikacja do prowadzenia sadów wiśniowych i czereśniowych, dostosowana do tel
 - Wiśnie Łutówka w kilogramach lub skrzynkach 5/10 kg. Czereśnie Wanda, Vega, Techlovan, Burlat, Cordia, Ulster, Regina w skrzynkach.
 - Cena w zł/kg, sprzedaż i średnia ważona masą. Kilogramy gatunków są osobno; finanse sumują się.
 - Wykres przychodów rok do roku pokazuje osobne linie dla wiśni i czereśni, liczone z masy × ceny sprzedaży. Brak ceny pozostaje brakiem danych; częściowe sumy mają komunikat. Przychód jest kwotą przed odjęciem kosztów.
+- W zakładce „Statystyki” przycisk „Badania gleby”: wpis badania (data, kwatera, głębokość próbki, kategoria gleby, laboratorium) z wynikami pH, P₂O₅, K₂O, Mg, próchnicy oraz opcjonalnie N-min, Ca i mikroelementów. Wykres liniowy wybranego parametru rok do roku (osobna linia dla każdej kwatery i głębokości; badania z jednego roku są uśredniane) i tabela kolejnych badań ze zmianą względem poprzedniego badania tego samego miejsca. Ocena zasobności pozostaje po stronie protokołu laboratorium.
 - Nowe i edytowane zbiory przyjmują pełne kilogramy; formularz i API odrzucają ułamki. Widoki zbiorów pokazują kg bez miejsc po przecinku. Historyczne ułamkowe masy pozostają zapisane bez zmian, wraz z dotychczasową wartością sprzedaży i eksportem.
 - Porównanie sezonów i kwater w kg i procentach. Sezon 2025 usunięty z list wyboru bez kasowania danych.
 - W zakładce „Statystyki” automatyczne wykresy liniowe zbiorów rok do roku: wiśnie i czereśnie osobno, odmiany czereśni jako oddzielne serie, filtr kwatery oraz włączanie i wyłączanie odmian. Bez wpisów jest komunikat; jeden sezon daje punkty, kolejne tworzą linie. Brak zapisów w sezonie jest przerwą, a nie zerowym plonem. Przycisk „Porównanie w tabelach” zachowuje dotychczasowy widok.
@@ -35,6 +36,7 @@ Podgląd: http://127.0.0.1:5173/. W nowym checkout należy zbudować aplikację 
 node node_modules/typescript/bin/tsc --noEmit
 node --experimental-strip-types scripts/check-domain.ts
 node --experimental-strip-types scripts/check-tree-varieties.ts
+node --experimental-strip-types scripts/check-soil.ts
 node scripts/check-api.mjs
 node scripts/run-framework.mjs build
 ```
