@@ -16,10 +16,10 @@ const plot={...base,id:crypto.randomUUID(),kind:'plot',date:'2020-03-01',name:'C
 let farm:Farm=applyMutation({records:[],appliedIds:[]},add(plot));
 
 // Sale channels: retail and wholesale split with weighted average price; entries without a channel stay separate.
-const harvest=(date:string,boxes10:number,price:number|null,saleChannel:'retail'|'wholesale'|null)=>({...base,id:crypto.randomUUID(),kind:'harvest',date,plotId:plot.id,variety:'Wanda',boxes5:0,boxes10,pricePerKg:price,saleChannel}) as OrchardRecord;
-for(const h of [harvest('2026-06-20',10,12,'retail'),harvest('2026-06-21',20,6,'wholesale'),harvest('2026-06-22',5,null,'wholesale'),harvest('2026-06-23',1,10,null)])farm=applyMutation(farm,add(h));
+const harvest=(date:string,boxes10:number,price:number|null,saleChannel:'retail'|'wholesale'|'market'|null)=>({...base,id:crypto.randomUUID(),kind:'harvest',date,plotId:plot.id,variety:'Wanda',boxes5:0,boxes10,pricePerKg:price,saleChannel}) as OrchardRecord;
+for(const h of [harvest('2026-06-20',10,12,'retail'),harvest('2026-06-21',20,6,'wholesale'),harvest('2026-06-22',5,null,'wholesale'),harvest('2026-06-23',1,10,null),harvest('2026-06-24',3,8,'market')])farm=applyMutation(farm,add(h));
 const channels=channelSeasonStats(farm.records,'2026');
-assert.deepEqual(channels.map(c=>[c.channel,c.kg,c.sales]),[['retail',100,1200],['wholesale',250,1200],[null,10,100]]);
+assert.deepEqual(channels.map(c=>[c.channel,c.kg,c.sales]),[['retail',100,1200],['wholesale',250,1200],['market',30,240],[null,10,100]]);
 assert.equal(channels[1].averagePrice,6);assert.equal(channels[1].missingPrices,1);
 
 // Fertilisation (IO 2021): light soil, low K in 0–20 cm and low K in 20–40 cm → 8–10 g K2O/m² raised by 20%.

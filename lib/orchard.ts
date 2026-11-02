@@ -10,9 +10,9 @@ const variety = z.string().trim().min(1).max(80);
 const count=z.number().int().min(0).max(1000000);
 const num=z.number().min(0).max(100000000);
 const stockUnit=z.enum(['kg','l']);
-export const saleChannels=['retail','wholesale'] as const;
+export const saleChannels=['retail','wholesale','market'] as const;
 export type SaleChannel=typeof saleChannels[number];
-export const saleChannelLabels:Record<SaleChannel,string>={retail:'Klient detaliczny',wholesale:'Skup'};
+export const saleChannelLabels:Record<SaleChannel,string>={retail:'Klient detaliczny',wholesale:'Skup',market:'Giełda'};
 // Pre-harvest interval in days for a crop; null means the product label sets none or it was not entered.
 const preHarvest=z.number().int().min(0).max(365).nullable();
 const materialSchema=z.object({stockId:z.string().uuid(),amount:num.positive(),unit:stockUnit});
