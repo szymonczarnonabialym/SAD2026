@@ -3,7 +3,7 @@ import {useMemo,useState} from 'react';
 import {CartesianGrid,Line,LineChart,ReferenceArea,ReferenceLine,ResponsiveContainer,Tooltip,XAxis,YAxis} from 'recharts';
 import {type OrchardRecord,type Plot} from '@/lib/orchard';
 import {soilParameters,soilCategories,soilParameter,soilTests,soilTimeline,type SoilParameter,type SoilTest} from '@/lib/soil';
-import {isTopsoil,isNormParameter,nutrientOptimum,phLimingLimits} from '@/lib/soil-norms';
+import {isTopsoil,soilLayer,isNormParameter,nutrientOptimum,phLimingLimits} from '@/lib/soil-norms';
 
 const fmt=(n:number)=>new Intl.NumberFormat('pl-PL',{maximumFractionDigits:2}).format(n);
 const colors=['#176145','#b92e54','#4268a7','#9a5b12','#7750a4','#087c85','#bd4830','#657320'];
@@ -18,10 +18,12 @@ export default function OrchardSoil({records,plots,plotId,onOpenTable}:{records:
  const timeline=soilTimeline(records,parameter,plotId,place);
  const series=timeline.series.map((s,i)=>({...s,color:colors[i%colors.length]}));
  const unit=soilParameter(parameter).unit;
- // A reference is drawn only when every topsoil test in view shares one soil category (phosphorus does not depend on it).
- const topsoil=tests.filter(t=>t.values[parameter]!=null&&isTopsoil(t.depth));
- const categories=Array.from(new Set(topsoil.map(t=>t.soilCategory??null))),category=categories.length===1?categories[0]:null;
- const band=isNormParameter(parameter)&&topsoil.length&&(parameter==='p2o5'||category)?nutrientOptimum(parameter,category??'medium'):null;
+ // The band follows the 20–40 cm layer when it is in view, otherwise the humus layer, and is drawn only when
+ // the tests of that layer share one soil category (phosphorus does not depend on it).
+ const withValue=tests.filter(t=>t.values[parameter]!=null),layer=withValue.some(t=>!isTopsoil(t.depth))?'subsoil':'topsoil';
+ const layerTests=withValue.filter(t=>soilLayer(t.depth)===layer);
+ const categories=Array.from(new Set(layerTests.map(t=>t.soilCategory??null))),category=categories.length===1?categories[0]:null;
+ const band=isNormParameter(parameter)&&layerTests.length&&(parameter==='p2o5'||category)?nutrientOptimum(parameter,category??'medium',layer):null;
  const phLimit=parameter==='ph'&&category?phLimingLimits[category][3]:null;
  return <section className="panel"><div className="toolbar"><div><h2>Stan gleby rok do roku</h2><span className="muted">Wykres z badań zapisanych w zakładce Zabiegi. Zakres kwatery wybierasz powyżej.</span></div><button type="button" className="button secondary" onClick={onOpenTable}>Tabela i wpisywanie badań</button></div>
   {!tests.length?<p className="muted">{plotId==='all'?'Nie zapisano jeszcze badań gleby. Dodasz je w zakładce Zabiegi → Badania gleby.':'Brak badań gleby dla wybranej kwatery.'}</p>:<>
@@ -41,9 +43,9 @@ export default function OrchardSoil({records,plots,plotId,onOpenTable}:{records:
     </ResponsiveContainer>
    </div>
    <p className="progress-note">Oś pozioma: rok badania · oś pionowa: {soilParameter(parameter).label}{unit?` w ${unit}`:''}. Każda linia to jedna kwatera i głębokość pobrania próbki. Kilka badań z jednego roku jest uśrednianych. Dotknij wykresu, aby zobaczyć wartości.</p>
-   {band&&<p className="progress-note"><i className="soil-band-key"/>Zielony pas: zakres optymalny dla gleb sadowniczych ({fmt(band[0])}–{fmt(band[1])} {unit}{parameter==='p2o5'?'':', gleba '+soilCategories.find(c=>c.value===category)?.label.toLowerCase()}), warstwa próchniczna. Normy znajdziesz pod tabelą badań w Zabiegach.</p>}
+   {band&&<p className="progress-note"><i className="soil-band-key"/>Zielony pas: {layer==='subsoil'?'zasobność średnia w warstwie 20–40 cm':'zakres optymalny w warstwie próchnicznej'} dla gleb sadowniczych ({fmt(band[0])}–{fmt(band[1])} {unit}{parameter==='p2o5'?'':', gleba '+soilCategories.find(c=>c.value===category)?.label.toLowerCase()}). Normy znajdziesz pod tabelą badań w Zabiegach.</p>}
    {phLimit!=null&&<p className="progress-note"><i className="soil-line-key"/>Przerywana linia: pH {fmt(phLimit)} — powyżej wapnowanie zbędne (gleba {soilCategories.find(c=>c.value===category)?.label.toLowerCase()}, wg IUNG).</p>}
-   {isNormParameter(parameter)||parameter==='ph'?!band&&phLimit==null&&<p className="progress-note">Normy nie są rysowane, bo badania mają różne lub niepodane kategorie gleby albo pochodzą z głębszej warstwy. Wybierz jedną kwaterę i uzupełnij kategorię gleby.</p>:null}
+   {isNormParameter(parameter)||parameter==='ph'?!band&&phLimit==null&&<p className="progress-note">Normy nie są rysowane, bo badania mają różne lub niepodane kategorie gleby. Wybierz jedną kwaterę i uzupełnij kategorię gleby.</p>:null}
    {timeline.data.length===1&&<p className="progress-note">Badania pochodzą z jednego roku, więc widać punkty. Kolejne badania utworzą linie zmian.</p>}
   </>}
  </section>;

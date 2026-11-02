@@ -54,9 +54,19 @@ assert.equal(phClass(5.3,'light').label,'Wapnowanie wskazane');
 assert.equal(phClass(6.0,'light').label,'Wapnowanie ograniczone');
 assert.equal(phClass(6.1,'light').label,'Wapnowanie zbędne');
 assert.equal(phClass(6.1,'heavy').label,'Wapnowanie wskazane');
-// Without a category or for deeper samples no class is given; micronutrients have no automatic norm.
+// Without a category no class is given; micronutrients have no automatic norm.
 assert.equal(soilNorm('ph',5,null,'0–20 cm'),null);
-assert.equal(soilNorm('k2o',8,'light','20–40 cm'),null);
+// 20–40 cm layer (IO footnotes): P 20–40 mg/kg; K 30–50 / 50–80 / 80–130; Mg 35–50 / 50–70.
+assert.equal(soilNorm('p2o5',4,null,'20–40 cm')?.label,'Niska');
+assert.equal(soilNorm('p2o5',6,null,'20–40 cm')?.label,'Średnia');
+assert.equal(soilNorm('p2o5',9.5,null,'20–40 cm')?.label,'Wysoka');
+assert.equal(soilNorm('k2o',5,'light','20–40 cm')?.label,'Średnia');
+assert.equal(soilNorm('k2o',8,'light','20–40 cm')?.label,'Wysoka');
+assert.equal(soilNorm('k2o',8,'heavy','20–40 cm')?.label,'Niska');
+assert.equal(soilNorm('k2o',12,'heavy','30–60 cm')?.label,'Średnia');
+assert.deepEqual(nutrientOptimum('mg','light','subsoil'),[3.5,5]);
+assert.equal(soilNorm('ph',5.8,'light','20–40 cm')?.label,'Wapnowanie ograniczone');
+assert.deepEqual(soilNorm('k2o',8,'light','20–40 cm'),soilNorm('k2o',8,'light','20-40 cm'));
 assert.equal(soilNorm('b',0.5,'light','0–20 cm'),null);
 assert.equal(isTopsoil('0-30 cm'),true);assert.equal(isTopsoil('30–60 cm'),false);
 console.log('Soil tests OK');
