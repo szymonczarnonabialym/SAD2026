@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {applyMutation,recordSchema,type OrchardRecord,type Farm} from '../lib/orchard.ts';
 // @ts-ignore Node TypeScript runner needs source extensions.
 import {soilTests,soilTimeline,previousSoilTest,soilSummary} from '../lib/soil.ts';
+// @ts-ignore Node TypeScript runner needs source extensions.
+import {soilNorm,nutrientOptimum,phClass,isTopsoil} from '../lib/soil-norms.ts';
 const add=(record:OrchardRecord)=>({action:'upsert' as const,requestId:crypto.randomUUID(),expectedVersion:record.version,record:recordSchema.parse(record)});
 const plot:OrchardRecord={id:crypto.randomUUID(),kind:'plot',date:'2020-03-01',note:'',version:0,name:'Wiśnie za domem',variety:'Łutówka',initialTrees:100,area:1,plantedYear:2015,rootstock:''};
 const soil=(date:string,values:Record<string,number>,depth='0–20 cm',plotId:string|null=plot.id):OrchardRecord=>({id:crypto.randomUUID(),kind:'soil',date,note:'',version:0,plotId,depth,lab:'OSChR',values} as OrchardRecord);
@@ -33,4 +35,28 @@ assert.equal(previousSoilTest(tests,tests.find(t=>t.id===second.id)!)?.id,first.
 assert.equal(previousSoilTest(tests,tests.find(t=>t.id===deeper.id)!),null);
 assert.equal(previousSoilTest(tests,tests.find(t=>t.id===again.id)!)?.id,second.id);
 assert.match(soilSummary(tests[0]),/pH 5,4 · P₂O₅ 18 mg\/100 g/);
+// Orchard norms (IO 2021): P 40–80 mg P/kg for every soil, i.e. 9,17–18,33 mg P2O5/100 g.
+const [pLow,pHigh]=nutrientOptimum('p2o5','light');
+assert.equal(Math.round(pLow*100)/100,9.17);assert.equal(Math.round(pHigh*100)/100,18.33);
+assert.equal(soilNorm('p2o5',9,null,'0–20 cm')?.label,'Niska');
+assert.equal(soilNorm('p2o5',9.17,null,'0–20 cm')?.label,'Optymalna');
+assert.equal(soilNorm('p2o5',18.4,'heavy','')?.label,'Wysoka');
+// Potassium depends on soil category: 50–80 mg K/kg on light soil, 130–210 on heavy soil.
+assert.equal(soilNorm('k2o',8,'light','0–20 cm')?.label,'Optymalna');
+assert.equal(soilNorm('k2o',8,'heavy','0–20 cm')?.label,'Niska');
+assert.equal(soilNorm('k2o',26,'heavy','0–20 cm')?.label,'Wysoka');
+assert.deepEqual(nutrientOptimum('mg','medium'),[5,7]);
+assert.equal(soilNorm('mg',4,'very-light','0–20 cm')?.label,'Optymalna');
+// pH follows IUNG liming needs by soil category.
+assert.equal(phClass(4.4,'light').label,'Wapnowanie konieczne');
+assert.equal(phClass(5.0,'light').label,'Wapnowanie potrzebne');
+assert.equal(phClass(5.3,'light').label,'Wapnowanie wskazane');
+assert.equal(phClass(6.0,'light').label,'Wapnowanie ograniczone');
+assert.equal(phClass(6.1,'light').label,'Wapnowanie zbędne');
+assert.equal(phClass(6.1,'heavy').label,'Wapnowanie wskazane');
+// Without a category or for deeper samples no class is given; micronutrients have no automatic norm.
+assert.equal(soilNorm('ph',5,null,'0–20 cm'),null);
+assert.equal(soilNorm('k2o',8,'light','20–40 cm'),null);
+assert.equal(soilNorm('b',0.5,'light','0–20 cm'),null);
+assert.equal(isTopsoil('0-30 cm'),true);assert.equal(isTopsoil('30–60 cm'),false);
 console.log('Soil tests OK');
