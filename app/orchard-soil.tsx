@@ -1,22 +1,13 @@
 'use client';
 import {useMemo,useState} from 'react';
-import {Plus,Pencil,Trash2} from 'lucide-react';
 import {CartesianGrid,Line,LineChart,ResponsiveContainer,Tooltip,XAxis,YAxis} from 'recharts';
-import {type OrchardRecord,type Plot,type Kind} from '@/lib/orchard';
-import {soilParameters,soilCategoryLabel,soilParameter,soilTests,previousSoilTest,soilTimeline,type SoilParameter,type SoilTest} from '@/lib/soil';
+import {type OrchardRecord,type Plot} from '@/lib/orchard';
+import {soilParameters,soilParameter,soilTests,soilTimeline,type SoilParameter,type SoilTest} from '@/lib/soil';
 
 const fmt=(n:number)=>new Intl.NumberFormat('pl-PL',{maximumFractionDigits:2}).format(n);
 const colors=['#176145','#b92e54','#4268a7','#9a5b12','#7750a4','#087c85','#bd4830','#657320'];
-const unitText=(key:SoilParameter)=>soilParameter(key).unit;
-const day=(s:string)=>new Date(s+'T12:00:00').toLocaleDateString('pl-PL',{day:'numeric',month:'short',year:'numeric'});
 
-function SoilChange({previous,current}:{previous:number|null|undefined,current:number}){
- if(previous==null)return null;
- const change=Math.round((current-previous)*100)/100;
- return <small className={change>0?'change positive':change<0?'change negative':'change'}>{change>0?'▲ +':change<0?'▼ ':''}{fmt(change)}</small>;
-}
-
-export default function OrchardSoil({records,plots,plotId,disabled,pending,onAdd,onDelete}:{records:OrchardRecord[],plots:Plot[],plotId:string,disabled:boolean,pending:Set<string>,onAdd:(kind:Kind,r?:OrchardRecord)=>void,onDelete:(r:OrchardRecord)=>void}){
+export default function OrchardSoil({records,plots,plotId,onOpenTable}:{records:OrchardRecord[],plots:Plot[],plotId:string,onOpenTable:()=>void}){
  const tests=useMemo(()=>soilTests(records,plotId),[records,plotId]);
  const plotName=(id:string|null)=>plots.find(p=>p.id===id)?.name||'Cały sad / bez kwatery';
  const place=(t:SoilTest)=>[plotName(t.plotId),t.depth].filter(Boolean).join(' · ');
@@ -25,10 +16,9 @@ export default function OrchardSoil({records,plots,plotId,disabled,pending,onAdd
  const parameter=measured.some(p=>p.key===chosen)?chosen:measured[0]?.key??'ph';
  const timeline=soilTimeline(records,parameter,plotId,place);
  const series=timeline.series.map((s,i)=>({...s,color:colors[i%colors.length]}));
- const unit=unitText(parameter);
- return <>
-  <section className="panel"><div className="toolbar"><div><h2>Badania gleby</h2><span className="muted">Wyniki analiz z kolejnych lat w jednym miejscu. Zakres kwatery wybierasz powyżej.</span></div><button className="button" disabled={disabled} onClick={()=>onAdd('soil')}><Plus size={18}/>Dodaj badanie gleby</button></div>
-  {!tests.length?<p className="muted">{plotId==='all'?'Nie zapisano jeszcze badań gleby. Przepisz wyniki z protokołu laboratorium — każde kolejne badanie pokaże zmianę względem poprzedniego.':'Brak badań gleby dla wybranej kwatery.'}</p>:<>
+ const unit=soilParameter(parameter).unit;
+ return <section className="panel"><div className="toolbar"><div><h2>Stan gleby rok do roku</h2><span className="muted">Wykres z badań zapisanych w zakładce Zabiegi. Zakres kwatery wybierasz powyżej.</span></div><button type="button" className="button secondary" onClick={onOpenTable}>Tabela i wpisywanie badań</button></div>
+  {!tests.length?<p className="muted">{plotId==='all'?'Nie zapisano jeszcze badań gleby. Dodasz je w zakładce Zabiegi → Badania gleby.':'Brak badań gleby dla wybranej kwatery.'}</p>:<>
    <div className="comparison-controls toolbar"><div><label htmlFor="soil-parameter" className="field-label">Parametr na wykresie</label><select id="soil-parameter" value={parameter} onChange={e=>setChosen(e.target.value as SoilParameter)}>{measured.map(p=><option key={p.key} value={p.key}>{p.label}{p.unit?` (${p.unit})`:''}</option>)}</select></div></div>
    <div className="chart-legend">{series.map(s=><span key={s.key}><i style={{background:s.color}}/>{s.name}</span>)}</div>
    <div className="harvest-line-chart" role="group" aria-label={`${soilParameter(parameter).label} rok do roku`}>
@@ -45,7 +35,5 @@ export default function OrchardSoil({records,plots,plotId,disabled,pending,onAdd
    <p className="progress-note">Oś pozioma: rok badania · oś pionowa: {soilParameter(parameter).label}{unit?` w ${unit}`:''}. Każda linia to jedna kwatera i głębokość pobrania próbki. Kilka badań z jednego roku jest uśrednianych. Dotknij wykresu, aby zobaczyć wartości.</p>
    {timeline.data.length===1&&<p className="progress-note">Badania pochodzą z jednego roku, więc widać punkty. Kolejne badania utworzą linie zmian.</p>}
   </>}
-  </section>
-  {tests.length>0&&<section className="panel"><h2>Wyniki kolejnych badań</h2><div className="table-scroll"><table className="comparison-table soil-table"><thead><tr><th>Badanie</th>{measured.map(p=><th key={p.key}>{p.short}{p.unit&&<span>{p.unit}</span>}</th>)}<th><span className="sr-only">Akcje</span></th></tr></thead><tbody>{[...tests].reverse().map(t=>{const previous=previousSoilTest(tests,t);return <tr key={t.id}><th scope="row">{day(t.date)}<span>{place(t)}</span>{(t.soilCategory||t.lab)&&<span>{[t.soilCategory&&'Gleba '+soilCategoryLabel(t.soilCategory).toLowerCase(),t.lab].filter(Boolean).join(' · ')}</span>}{t.note&&<span className="note-text">{t.note}</span>}{pending.has(t.id)&&<span className="badge">Oczekuje</span>}</th>{measured.map(p=><td key={p.key}>{t.values[p.key]==null?'—':<>{fmt(t.values[p.key]!)}<br/><SoilChange previous={previous?.values[p.key]} current={t.values[p.key]!}/></>}</td>)}<td><div className="record-actions"><button className="icon-btn" aria-label={`Edytuj badanie gleby ${t.date}`} disabled={disabled||pending.has(t.id)} onClick={()=>onAdd('soil',t)}><Pencil/></button><button className="icon-btn" aria-label={`Usuń badanie gleby ${t.date}`} disabled={disabled||pending.has(t.id)} onClick={()=>onDelete(t)}><Trash2/></button></div></td></tr>})}</tbody></table></div><p className="progress-note">Strzałki pokazują zmianę względem poprzedniego badania tej samej kwatery i głębokości. Ocenę zasobności (niska, średnia, wysoka) odczytuj z protokołu laboratorium — zależy od kategorii gleby i metody analizy.</p></section>}
- </>;
+ </section>;
 }
