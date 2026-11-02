@@ -11,6 +11,11 @@ Aplikacja do prowadzenia sadów wiśniowych i czereśniowych, dostosowana do tel
 - Porównanie sezonów i kwater w kg i procentach. Sezon 2025 usunięty z list wyboru bez kasowania danych.
 - W zakładce „Statystyki” automatyczne wykresy liniowe zbiorów rok do roku: wiśnie i czereśnie osobno, odmiany czereśni jako oddzielne serie, filtr kwatery oraz włączanie i wyłączanie odmian. Bez wpisów jest komunikat; jeden sezon daje punkty, kolejne tworzą linie. Brak zapisów w sezonie jest przerwą, a nie zerowym plonem. Przycisk „Porównanie w tabelach” zachowuje dotychczasowy widok.
 - Opryski, nawożenie, podlewanie, obserwacje, ubytki i dosadzenia.
+- Karencja: środek ochrony roślin w magazynie ma okres karencji dla wiśni i czereśni. Dla 18 środków z katalogu wartości są wbudowane z etykiet MRiRW (sprawdzone 2026-11-02, z linkiem do etykiety) i można je poprawić. Oprysk pokazuje „zbiór dozwolony od”, Przegląd — trwające karencje, a formularz zbioru ostrzega przed zbiorem w czasie karencji na tej samej kwaterze (oprysk bez kwatery dotyczy całego sadu). MRiRW nie udostępnia karencji w API, dlatego nie jest pobierana na bieżąco.
+- Ewidencja zabiegów ochrony roślin (Zabiegi → Opryski): CSV i wydruk/PDF sezonu z datą, uprawą, kwaterą, powierzchnią, środkiem, dawką na ha, zużyciem, przyczyną, fazą i terminem karencji. Oprysk ma pola powierzchni (ha) i przyczyny.
+- Zalecenia nawożenia (Zabiegi → Badania gleby): dla każdej kwatery z ostatnich badań 0–20 i 20–40 cm dawki P₂O₅, K₂O i MgO w sadzie (g/m² i kg/ha pow. nawożonej) i przed założeniem sadu oraz dawka wapna (kg CaO/100 m²) wg tabel 6, 8, 10 i 12 Instytutu Ogrodnictwa–PIB (2021). Bez badania 0–20 cm pokazywana jest tylko korekta ±20% z warstwy 20–40 cm.
+- Pogoda (Statystyki → Pogoda): dla okolic sadu (Wyskoć Mała k. Kościana) automatycznie z archiwum Open-Meteo — przymrozki w przybliżonym okresie kwitnienia (1.04–20.05), najniższa temperatura, opady, dni deszczowe i upały w czerwcu–lipcu, zestawione ze zbiorami. Zakończone sezony są zapamiętywane na urządzeniu.
+- Odbiorca sprzedaży przy zbiorze (klient detaliczny / skup), widoczny na liście, w CSV i w Statystykach (sprzedaż według odbiorcy ze średnią ceną).
 - Magazyn, kolejne zakupy i wiele środków w jednym zabiegu. Edycja/usunięcie zabiegu przelicza stan; zapisy z ujemnym stanem są odrzucane, także przy równoległych operacjach.
 - Przy dodawaniu można wybrać kolejny zakup zapisanej pozycji, bez powtarzania nazwy. W zabiegu wybiera się najpierw rodzaj (środek ochrony roślin albo nawóz), potem pozycję z magazynu. Nazwy użytych preparatów widać w nagłówku wpisu. Ceny jednostkowe wyświetlają się z dwoma miejscami po przecinku; precyzja wyliczania kosztów pozostaje zachowana.
 - Łączna cena zakupu środka za podaną ilość (np. 150 zł za 5 l); cena jednostkowa i średnia ważona wyliczają się automatycznie. Szacowany koszt zużytych środków można przyciskiem wpisać do kosztu zabiegu.
@@ -37,13 +42,14 @@ node node_modules/typescript/bin/tsc --noEmit
 node --experimental-strip-types scripts/check-domain.ts
 node --experimental-strip-types scripts/check-tree-varieties.ts
 node --experimental-strip-types scripts/check-soil.ts
+node --experimental-strip-types scripts/check-season-tools.ts
 node scripts/check-api.mjs
 node scripts/run-framework.mjs build
 ```
 
 Test API wymaga uruchomionego podglądu i usuwa wyłącznie własne rekordy testowe. Dane każdego użytkownika są zapisywane w D1; IndexedDB przechowuje kopię i kolejkę offline. Wynik finansowy obejmuje sprzedaż z ceną minus zapisane koszty zabiegów; pełny zysk wymaga wszystkich kosztów. Zakupy magazynowe zapisują ilości i opcjonalne ceny; koszt zużycia uwzględnia się w zabiegach. Zakup nie jest ponownie odejmowany od wyniku. Średnia cena uwzględnia wszystkie zapisane zakupy, a szacunek wartości zapasu jest dostępny po uzupełnieniu cen wszystkich partii.
 
-Przypomnienia push przy zamkniętej aplikacji nie są wdrożone. Alarm poza aplikacją wymaga importu ICS do kalendarza obsługującego alarmy. Instalacja i pełne działanie offline na fizycznym Androidzie wymagają weryfikacji. Kopia JSON jest eksportem bez formularza importu. Limit rejestru gospodarstwa wynosi 1,5 MB; edycja offline pracuje w jednej aktywnej karcie na urządzeniu.
+Przypomnienia push przy zamkniętej aplikacji nie są wdrożone. Alarm poza aplikacją wymaga importu ICS do kalendarza obsługującego alarmy. Instalacja i pełne działanie offline na fizycznym Androidzie wymagają weryfikacji. „Wczytaj kopię” przywraca z pliku kopii JSON wpisy, których brakuje w rejestrze; istniejących nie nadpisuje, a całość jest sprawdzana przed zapisem. Limit rejestru gospodarstwa wynosi 1,5 MB; edycja offline pracuje w jednej aktywnej karcie na urządzeniu.
 
 Źródła: [Program ochrony czereśni](https://www.inhort.pl/files/sor/programy_ochrony/Program_ochrony_czeresni.pdf), [Program ochrony wiśni](https://www.inhort.pl/files/sor/programy_ochrony/Program_ochrony_wisni.pdf), [Etykiety MRiRW](https://www.gov.pl/web/rolnictwo/etykiety-srodkow-ochrony-roslin).
 
