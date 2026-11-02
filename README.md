@@ -43,13 +43,14 @@ node --experimental-strip-types scripts/check-domain.ts
 node --experimental-strip-types scripts/check-tree-varieties.ts
 node --experimental-strip-types scripts/check-soil.ts
 node --experimental-strip-types scripts/check-season-tools.ts
+node --experimental-strip-types scripts/check-farm-store.ts
 node scripts/check-api.mjs
 node scripts/run-framework.mjs build
 ```
 
-Test API wymaga uruchomionego podglądu i usuwa wyłącznie własne rekordy testowe. Dane każdego użytkownika są zapisywane w D1; IndexedDB przechowuje kopię i kolejkę offline. Wynik finansowy obejmuje sprzedaż z ceną minus zapisane koszty zabiegów; pełny zysk wymaga wszystkich kosztów. Zakupy magazynowe zapisują ilości i opcjonalne ceny; koszt zużycia uwzględnia się w zabiegach. Zakup nie jest ponownie odejmowany od wyniku. Średnia cena uwzględnia wszystkie zapisane zakupy, a szacunek wartości zapasu jest dostępny po uzupełnieniu cen wszystkich partii.
+Test API wymaga uruchomionego podglądu i usuwa wyłącznie własne rekordy testowe. Dane każdego użytkownika są zapisywane w D1 jako osobne wiersze tabeli `farm_records` (jeden wpis — jeden wiersz), z licznikiem wersji w `farm_state` i identyfikatorami zapisów w `farm_requests`. Tabele tworzą się same przy pierwszym użyciu, a dawny rejestr z jednego wiersza `farms` jest wtedy kopiowany do nowych tabel i zostaje jako kopia zapasowa; IndexedDB przechowuje kopię i kolejkę offline. Wynik finansowy obejmuje sprzedaż z ceną minus zapisane koszty zabiegów; pełny zysk wymaga wszystkich kosztów. Zakupy magazynowe zapisują ilości i opcjonalne ceny; koszt zużycia uwzględnia się w zabiegach. Zakup nie jest ponownie odejmowany od wyniku. Średnia cena uwzględnia wszystkie zapisane zakupy, a szacunek wartości zapasu jest dostępny po uzupełnieniu cen wszystkich partii.
 
-Przypomnienia push przy zamkniętej aplikacji nie są wdrożone. Alarm poza aplikacją wymaga importu ICS do kalendarza obsługującego alarmy. Instalacja i pełne działanie offline na fizycznym Androidzie wymagają weryfikacji. „Wczytaj kopię” przywraca z pliku kopii JSON wpisy, których brakuje w rejestrze; istniejących nie nadpisuje, a całość jest sprawdzana przed zapisem. Limit rejestru gospodarstwa wynosi 1,5 MB; edycja offline pracuje w jednej aktywnej karcie na urządzeniu.
+Przypomnienia push przy zamkniętej aplikacji nie są wdrożone. Alarm poza aplikacją wymaga importu ICS do kalendarza obsługującego alarmy. Instalacja i pełne działanie offline na fizycznym Androidzie wymagają weryfikacji. „Wczytaj kopię” przywraca z pliku kopii JSON wpisy, których brakuje w rejestrze; istniejących nie nadpisuje, a całość jest sprawdzana przed zapisem. Rejestr nie ma limitu rozmiaru (pojedynczy wpis do 12 KB); edycja offline pracuje w jednej aktywnej karcie na urządzeniu.
 
 Źródła: [Program ochrony czereśni](https://www.inhort.pl/files/sor/programy_ochrony/Program_ochrony_czeresni.pdf), [Program ochrony wiśni](https://www.inhort.pl/files/sor/programy_ochrony/Program_ochrony_wisni.pdf), [Etykiety MRiRW](https://www.gov.pl/web/rolnictwo/etykiety-srodkow-ochrony-roslin).
 

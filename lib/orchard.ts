@@ -189,6 +189,7 @@ export function applyMutation(farm:Farm,m:Mutation):Farm{
  }
  for(const stock of stocks){if(stockBalance(stock,next)<0)throw new Error(`Za mało środka „${stock.name}” w magazynie. Dodaj zakup lub popraw ilość zużycia.`);}
  const result={records:next,appliedIds:[...farm.appliedIds,m.requestId].slice(-500)};
- if(new TextEncoder().encode(JSON.stringify(result)).length>1500000)throw new Error('Rejestr osiągnął pojemność tej wersji. Wyeksportuj dane i skontaktuj się w sprawie rozszerzenia.');
+ // Entries are stored one per row, so only a single entry has a size cap; the register as a whole has none.
+ if(m.action==='upsert'&&new TextEncoder().encode(JSON.stringify(m.record)).length>12000)throw new Error('Wpis jest zbyt długi. Skróć uwagi lub opis.');
  return result;
 }
