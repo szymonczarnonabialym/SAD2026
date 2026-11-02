@@ -10,12 +10,17 @@ const variety = z.string().trim().min(1).max(80);
 const count=z.number().int().min(0).max(1000000);
 const num=z.number().min(0).max(100000000);
 const stockUnit=z.enum(['kg','l']);
+export const saleChannels=['retail','wholesale','market'] as const;
+export type SaleChannel=typeof saleChannels[number];
+export const saleChannelLabels:Record<SaleChannel,string>={retail:'Klient detaliczny',wholesale:'Skup',market:'Giełda'};
+// Pre-harvest interval in days for a crop; null means the product label sets none or it was not entered.
+const preHarvest=z.number().int().min(0).max(365).nullable();
 const materialSchema=z.object({stockId:z.string().uuid(),amount:num.positive(),unit:stockUnit});
 export const recordSchema = z.discriminatedUnion('kind',[
  z.object({...base,kind:z.literal('plot'),name:z.string().trim().min(1).max(100),variety,varieties:z.array(variety).min(1).max(50).optional(),varietyTrees:z.array(z.object({variety,trees:count})).max(50).optional(),area:z.number().min(0).max(100000),initialTrees:count,plantedYear:z.number().int().min(1900).max(2200).nullable(),rootstock:z.string().max(100).default('')}),
- z.object({...base,kind:z.literal('harvest'),plotId:z.string().uuid().nullable(),variety,boxes5:count,boxes10:count,weightKg:num.int('Wpisz pełne kilogramy, bez części po przecinku.').nullable().optional(),pricePerKg:num.nullable().optional()}),
- z.object({...base,kind:z.literal('treatment'),plotId:z.string().uuid().nullable(),treatment:z.enum(treatments),product:z.string().max(200),amount:num,unit:z.enum(['kg','l','g','ml','m³','godz.']),cost:num,costSource:z.literal('inventory').optional(),materials:z.array(materialSchema).max(20).optional(),fruit:z.enum(['sour','sweet']).nullable().optional(),stage:z.string().max(160).nullable().optional()}),
- z.object({...base,kind:z.literal('stock'),name:z.string().trim().min(1).max(160),category:z.enum(['protection','fertilizer']),unit:stockUnit,initialAmount:num,minimum:num.default(0),pricePerUnit:num.nullable().optional()}),
+ z.object({...base,kind:z.literal('harvest'),plotId:z.string().uuid().nullable(),variety,boxes5:count,boxes10:count,weightKg:num.int('Wpisz pełne kilogramy, bez części po przecinku.').nullable().optional(),pricePerKg:num.nullable().optional(),saleChannel:z.enum(saleChannels).nullable().optional()}),
+ z.object({...base,kind:z.literal('treatment'),plotId:z.string().uuid().nullable(),treatment:z.enum(treatments),product:z.string().max(200),amount:num,unit:z.enum(['kg','l','g','ml','m³','godz.']),cost:num,costSource:z.literal('inventory').optional(),materials:z.array(materialSchema).max(20).optional(),fruit:z.enum(['sour','sweet']).nullable().optional(),stage:z.string().max(160).nullable().optional(),area:z.number().min(0).max(100000).nullable().optional(),target:z.string().trim().max(160).optional()}),
+ z.object({...base,kind:z.literal('stock'),name:z.string().trim().min(1).max(160),category:z.enum(['protection','fertilizer']),unit:stockUnit,initialAmount:num,minimum:num.default(0),pricePerUnit:num.nullable().optional(),preHarvestDays:z.object({sour:preHarvest,sweet:preHarvest}).optional()}),
  z.object({...base,kind:z.literal('purchase'),stockId:z.string().uuid(),amount:num.positive(),unit:stockUnit,pricePerUnit:num.nullable().optional()}),
  z.object({...base,kind:z.literal('plan'),plotId:z.string().uuid().nullable(),name:z.string().trim().min(1).max(160),fruit:z.enum(['sour','sweet']),stage:z.string().max(160).nullable().optional(),leadDays:z.number().int().min(0).max(30).default(7),completed:z.boolean().default(false)}),
  z.object({...base,kind:z.literal('trees'),plotId:z.string().uuid(),variety:variety.nullable().optional(),treeChange:z.number().int().min(-1000000).max(1000000).refine(v=>v!==0)}),
@@ -113,6 +118,15 @@ export function varietySeasonStats(records:OrchardRecord[],year:string,variety:s
  const entries=records.filter((r):r is Harvest=>r.kind==='harvest'&&r.variety===variety&&r.date.slice(0,4)===year&&(plotId==='all'||(plotId==='none'?r.plotId===null:r.plotId===plotId)));
  return {kg:entries.reduce((n,r)=>n+weight(r),0),sales:Math.round(entries.reduce((n,r)=>n+saleValue(r),0)*100)/100,missingPrices:entries.filter(r=>r.pricePerKg==null).length};
 }
+/** Harvest mass and sales split by sale channel; entries without a channel form their own group. */
+export function channelSeasonStats(records:OrchardRecord[],year:string,plotId='all'){
+ const harvests=records.filter((r):r is Harvest=>r.kind==='harvest'&&r.date.slice(0,4)===year&&(plotId==='all'||(plotId==='none'?r.plotId===null:r.plotId===plotId)));
+ return ([...saleChannels,null] as (SaleChannel|null)[]).map(channel=>{
+  const entries=harvests.filter(r=>(r.saleChannel??null)===channel),priced=entries.filter(r=>r.pricePerKg!=null);
+  const pricedKg=priced.reduce((n,r)=>n+weight(r),0),sales=Math.round(priced.reduce((n,r)=>n+saleValue(r),0)*100)/100;
+  return {channel,entries:entries.length,kg:entries.reduce((n,r)=>n+weight(r),0),sales,averagePrice:pricedKg>0?sales/pricedKg:null,missingPrices:entries.length-priced.length};
+ });
+}
 export function applyMutation(farm:Farm,m:Mutation):Farm{
  if(farm.appliedIds.includes(m.requestId))return farm;
  if(m.action==='upsert'&&m.record.kind==='treatment'&&m.record.costSource==='inventory'){
@@ -175,6 +189,7 @@ export function applyMutation(farm:Farm,m:Mutation):Farm{
  }
  for(const stock of stocks){if(stockBalance(stock,next)<0)throw new Error(`Za mało środka „${stock.name}” w magazynie. Dodaj zakup lub popraw ilość zużycia.`);}
  const result={records:next,appliedIds:[...farm.appliedIds,m.requestId].slice(-500)};
- if(new TextEncoder().encode(JSON.stringify(result)).length>1500000)throw new Error('Rejestr osiągnął pojemność tej wersji. Wyeksportuj dane i skontaktuj się w sprawie rozszerzenia.');
+ // Entries are stored one per row, so only a single entry has a size cap; the register as a whole has none.
+ if(m.action==='upsert'&&new TextEncoder().encode(JSON.stringify(m.record)).length>12000)throw new Error('Wpis jest zbyt długi. Skróć uwagi lub opis.');
  return result;
 }

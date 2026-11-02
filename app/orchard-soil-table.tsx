@@ -3,6 +3,7 @@ import {useState} from 'react';
 import {Plus,Pencil,Trash2} from 'lucide-react';
 import {plotFruit,type OrchardRecord,type Plot,type Kind} from '@/lib/orchard';
 import {soilParameters,soilCategories,soilCategoryLabel,soilTests,previousSoilTest,type SoilTest} from '@/lib/soil';
+import {SoilFertilization} from './orchard-soil-fertilization';
 import {soilNorm,nutrientOptimum,type SoilLayer,phLimingLimits,nowosielskiOptimum,normsSource,P2O5_PER_P,K2O_PER_K} from '@/lib/soil-norms';
 
 const fmt=(n:number)=>new Intl.NumberFormat('pl-PL',{maximumFractionDigits:2}).format(n);
@@ -62,6 +63,7 @@ export function SoilTable({records,plots,disabled,pending,onAdd,onDelete}:{recor
    <div className="table-scroll"><table className="comparison-table soil-table"><caption className="sr-only">{group==='main'?'Wyniki podstawowe kolejnych badań gleby':'Azot, wapń i mikroelementy w kolejnych badaniach gleby'}</caption><thead><tr><th>Badanie</th>{measured.map(p=><th key={p.key}>{p.short}{p.unit&&<span>{p.unit}</span>}</th>)}<th><span className="sr-only">Akcje</span></th></tr></thead><tbody>{[...shown].reverse().map(t=>{const previous=previousSoilTest(tests,t);return <tr key={t.id}><th scope="row">{day(t.date)}<span>{place(t)}</span>{(t.soilCategory||t.lab)&&<span>{[t.soilCategory&&'Gleba '+soilCategoryLabel(t.soilCategory).toLowerCase(),t.lab].filter(Boolean).join(' · ')}</span>}{t.note&&<span className="note-text">{t.note}</span>}{pending.has(t.id)&&<span className="badge">Oczekuje</span>}</th>{measured.map(p=><td key={p.key}>{t.values[p.key]==null?'—':<>{fmt(t.values[p.key]!)}<br/><SoilChange previous={previous?.values[p.key]} current={t.values[p.key]!}/><NormBadge test={t} parameter={p.key}/></>}</td>)}<td><div className="record-actions"><button className="icon-btn" aria-label={`Edytuj badanie gleby ${t.date}`} disabled={disabled||pending.has(t.id)} onClick={()=>onAdd('soil',t)}><Pencil/></button><button className="icon-btn" aria-label={`Usuń badanie gleby ${t.date}`} disabled={disabled||pending.has(t.id)} onClick={()=>onDelete(t)}><Trash2/></button></div></td></tr>})}</tbody></table></div>
    <p className="progress-note">Tabela obejmuje wszystkie lata, niezależnie od wybranego sezonu. Strzałki pokazują zmianę względem poprzedniego badania tej samej kwatery i głębokości. {group==='main'?'Ocena pod wartością pochodzi z norm dla gleb sadowniczych poniżej: dla próbek 20–40 cm „Niska / Średnia / Wysoka”, dla warstwy próchnicznej „Niska / Optymalna / Wysoka”. Brak oceny oznacza brak kategorii gleby lub parametr bez normy.':'Mikroelementy, wapń i N-min nie mają norm dla sadów w tych samych jednostkach, dlatego nie są oceniane — orientacyjne zakresy są w panelu norm poniżej.'} Wykres zmian znajdziesz w Statystykach.</p>
   </>}</section>
+  <SoilFertilization tests={tests} plots={plots}/>
   <SoilNorms/>
  </>;
 }
