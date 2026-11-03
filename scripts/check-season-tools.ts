@@ -4,9 +4,9 @@ import {applyMutation,recordSchema,channelSeasonStats,type OrchardRecord,type Fa
 // @ts-ignore Node TypeScript runner needs source extensions.
 import {fertilizationAdvice,limeDose} from '../lib/soil-fertilization.ts';
 // @ts-ignore Node TypeScript runner needs source extensions.
-import {summarizeSeason,seasonRange,parseDaily,describeWeather,parseForecast,sprayConditions,frostDays} from '../lib/weather.ts';
+import {summarizeSeason,seasonRange,parseDaily,describeWeather,parseForecast,sprayConditions,frostDays,rainAfterSpray,sprayWindows,nightFrosts} from '../lib/weather.ts';
 // @ts-ignore Node TypeScript runner needs source extensions.
-import {treatmentPreHarvest,harvestConflicts,activePreHarvest,sprayRegister,stockPreHarvest} from '../lib/spray-records.ts';
+import {treatmentPreHarvest,harvestConflicts,activePreHarvest,sprayRegister,stockPreHarvest,treatmentRainfast} from '../lib/spray-records.ts';
 // @ts-ignore Node TypeScript runner needs source extensions.
 import {backupRestore} from '../lib/backup-import.ts';
 
@@ -105,4 +105,28 @@ assert.match(sprayConditions({...fc,code:61}).reason,/deszcz/);
 assert.match(sprayConditions({...fc,days:[{...fc.days[0],rainChance:70}]}).reason,/70%/);
 assert.deepEqual(frostDays(fc).map(d=>d.date),['2026-04-21','2026-04-22']);
 assert.throws(()=>parseForecast({}),/Nieprawidłowa/);
+// Hourly data: past days are dropped from the daily cards; rain after spraying uses measured rain before now.
+const hour=(time:string,precipitation=0,rainChance:number|null=0,wind=2,temperature=12)=>({time,temperature,precipitation,rainChance,code:precipitation?61:1,wind,gusts:wind*1.5,humidity:70});
+const withPast=parseForecast({...forecastJson,daily:{...forecastJson.daily,time:['2026-04-19','2026-04-20','2026-04-21']},hourly:{time:['2026-04-20T07:00'],temperature_2m:[5],precipitation:[0],precipitation_probability:[null],weather_code:[1],wind_speed_10m:[2],wind_gusts_10m:[3],relative_humidity_2m:[80]}});
+assert.deepEqual(withPast.days.map(d=>d.date),['2026-04-20','2026-04-21']);assert.equal(withPast.hours[0].rainChance,null);
+const hrs=[hour('2026-04-20T09:00'),hour('2026-04-20T10:00'),hour('2026-04-20T11:00',0.4),hour('2026-04-20T12:00'),hour('2026-04-20T13:00',0,70),hour('2026-04-20T14:00')];
+assert.equal(rainAfterSpray('2026-04-20','09:30',2,hrs,'2026-04-20T12:00').status,'rain');
+assert.equal(rainAfterSpray('2026-04-20','09:30',2,hrs,'2026-04-20T12:00').firstRain?.time,'2026-04-20T11:00');
+assert.equal(rainAfterSpray('2026-04-20','09:30',1,hrs,'2026-04-20T12:00').status,'ok');
+assert.equal(rainAfterSpray('2026-04-20','12:15',2,hrs,'2026-04-20T12:00').status,'risk');
+assert.equal(rainAfterSpray('2026-04-20','14:00',2,hrs,'2026-04-20T12:00').status,'absorbing');
+assert.equal(rainAfterSpray('2026-04-25','09:00',2,hrs,'2026-04-20T12:00').status,'no-data');
+// Spray windows: dry, calm hours followed by 2 dry hours; frosts per night.
+const day=Array.from({length:10},(_,i)=>hour('2026-04-21T'+String(8+i).padStart(2,'0')+':00',i===7?1:0,10,i===2?6:2));
+assert.deepEqual(sprayWindows(day,'2026-04-21T08:00').map(w=>[w.start,w.end,w.hours]),[['2026-04-21T08:00','2026-04-21T10:00',2],['2026-04-21T11:00','2026-04-21T13:00',2]]);
+const night=[hour('2026-04-21T22:00',0,0,1,1),hour('2026-04-22T04:00',0,0,1,-1.5),hour('2026-04-22T12:00',0,0,1,-3),hour('2026-04-22T23:00',0,0,1,2)];
+assert.deepEqual(nightFrosts(night,'2026-04-21T20:00'),[{night:'2026-04-21',time:'2026-04-22T04:00',temperature:-1.5}]);
+// Rainfastness: the longest among protection products, default for those without a value.
+const rf=(name:string,h:number|null)=>({...base,id:crypto.randomUUID(),kind:'stock',date:'2026-01-01',name,category:'protection',unit:'l',initialAmount:1,minimum:0,rainfastHours:h}) as any;
+const r1=rf('A',1),r2=rf('B',null),r3=rf('C',6);
+const t=(ids:string[])=>({...base,id:crypto.randomUUID(),kind:'treatment',date:'2026-04-20',plotId:null,treatment:'Oprysk',product:'',amount:0,unit:'l',cost:0,materials:ids.map(stockId=>({stockId,amount:1,unit:'l'}))}) as any;
+assert.deepEqual(treatmentRainfast(t([r1.id]),[r1,r2,r3],2),{hours:1,unknown:[]});
+assert.deepEqual(treatmentRainfast(t([r1.id,r2.id]),[r1,r2,r3],2),{hours:2,unknown:['B']});
+assert.deepEqual(treatmentRainfast(t([r3.id,r1.id]),[r1,r2,r3],2),{hours:6,unknown:[]});
+assert.deepEqual(treatmentRainfast(t([]),[r1],2),{hours:2,unknown:[]});
 console.log('PASS: sale channels, fertiliser and lime doses, season weather, pre-harvest intervals, spray register and backup restore.');

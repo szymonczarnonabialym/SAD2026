@@ -301,3 +301,57 @@ button:focus-visible,a:focus-visible,label:focus-within{outline:2px solid var(--
  .weather-chip{border-radius:12px;align-items:flex-start;width:100%}
  .weather-chip svg{margin-top:2px}
 }
+
+/* ---------- Weather tab ---------- */
+.weather-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+.weather-foot .weather-source{margin:0}
+.weather-more{display:inline-flex;align-items:center;gap:2px;color:var(--w-ink);font-size:13px}
+.weather-night .weather-more{color:#fff}
+.weather-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.weather-grid>.panel{margin-top:16px}
+.rain-check{padding:12px 0;border-top:1px solid var(--line)}
+.rain-check:first-of-type{border-top:0;padding-top:0}
+.rain-check-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.rain-check-head strong{display:block;font-size:14.5px}
+.rain-check-head .muted{display:block;font-size:12.5px}
+.rain-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12.5px;font-weight:650;white-space:nowrap}
+.rain-badge.ok{background:var(--brand-soft);color:var(--brand-ink)}
+.rain-badge.absorbing{background:#e9f2fc;color:#24527e}
+.rain-badge.risk{background:var(--warn-soft);color:var(--warn)}
+.rain-badge.rain{background:var(--danger-soft);color:var(--danger)}
+.rain-badge.no-data{background:var(--surface-3);color:var(--ink-3)}
+.rain-hours{list-style:none;display:flex;gap:6px;overflow-x:auto;margin:10px 0 0;padding:0 0 4px}
+.rain-hours li{flex:0 0 auto;min-width:64px;display:flex;flex-direction:column;align-items:center;padding:6px 8px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);font-size:12px;font-variant-numeric:tabular-nums}
+.rain-hours li span{color:var(--ink-3);font-weight:600}
+.rain-hours li strong{font-size:13px}
+.rain-hours li small{color:var(--ink-3);font-size:11px}
+.rain-hours li.wet{background:#e3eefb;border-color:#bcd4f1}
+.rain-hours li.wet strong{color:#24527e}
+.rain-hours li.past{opacity:.85}
+.spray-windows,.frost-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.spray-windows li,.frost-list li{display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--brand-soft);border:1px solid var(--brand-line)}
+.spray-windows li svg{grid-row:span 2;color:var(--brand)}
+.spray-windows li span,.frost-list li span{font-size:12.5px;color:var(--ink-3)}
+.frost-list li{background:#e9f2fc;border-color:#c8dcf3}
+.frost-list li svg{grid-row:span 2;color:#3a6ea8}
+.frost-list li.severe{background:var(--danger-soft);border-color:var(--danger-line)}
+.frost-list li.severe svg,.frost-list li.severe strong{color:var(--danger)}
+.hourly{list-style:none;display:flex;gap:6px;overflow-x:auto;margin:0;padding:0 0 6px}
+.hourly li{flex:0 0 64px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-variant-numeric:tabular-nums}
+.hourly li>span{font-size:12px;font-weight:650;color:var(--ink-3)}
+.hourly li svg{width:24px;height:24px;color:var(--ink-2)}
+.hourly li strong{font-size:15px}
+.hourly small{font-size:11px;color:var(--ink-3);display:inline-flex;align-items:center;gap:2px}
+.hourly li.wet{background:#e3eefb;border-color:#bcd4f1}
+.hourly li.wet .h-rain{color:#24527e;font-weight:700}
+.hourly li.windy .h-wind{color:var(--warn);font-weight:700}
+.daily-table .daily-sky{white-space:nowrap}
+.daily-table svg{display:inline-block;vertical-align:-4px}
+.daily-table .daily-sky svg{width:20px;height:20px;color:var(--ink-2);margin-right:8px}
+.daily-table small{color:var(--ink-3)}
+.frost-text{color:#24527e;font-weight:700}
+.windy-text{color:var(--warn);font-weight:700}
+.sun-times{white-space:nowrap;color:var(--ink-3)}
+.sun-times svg{vertical-align:-2px;margin:0 3px 0 6px}
+@media(max-width:1100px){.weather-grid{grid-template-columns:1fr;gap:0}}
+.weather-grid>*,.panel{min-width:0}
