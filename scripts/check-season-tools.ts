@@ -4,7 +4,7 @@ import {applyMutation,recordSchema,channelSeasonStats,type OrchardRecord,type Fa
 // @ts-ignore Node TypeScript runner needs source extensions.
 import {fertilizationAdvice,limeDose} from '../lib/soil-fertilization.ts';
 // @ts-ignore Node TypeScript runner needs source extensions.
-import {summarizeSeason,seasonRange,parseDaily} from '../lib/weather.ts';
+import {summarizeSeason,seasonRange,parseDaily,describeWeather,parseForecast,sprayConditions,frostDays} from '../lib/weather.ts';
 // @ts-ignore Node TypeScript runner needs source extensions.
 import {treatmentPreHarvest,harvestConflicts,activePreHarvest,sprayRegister,stockPreHarvest} from '../lib/spray-records.ts';
 // @ts-ignore Node TypeScript runner needs source extensions.
@@ -93,4 +93,16 @@ assert.equal(rebuilt.records.length,farm.records.length);
 assert.equal(backupRestore(rebuilt,backup).mutations.length,0);
 assert.throws(()=>backupRestore(fresh,'{}'),/Pełna kopia/);
 assert.throws(()=>backupRestore(fresh,'nie json'),/JSON/);
+// Current weather: WMO codes map to icons; spraying needs wind up to 4 m/s and no rain.
+assert.deepEqual(describeWeather(0),{label:'Bezchmurnie',kind:'clear'});
+assert.equal(describeWeather(63).kind,'rain');assert.equal(describeWeather(81).kind,'rain');assert.equal(describeWeather(96).label,'Burza z gradem');assert.equal(describeWeather(45).kind,'fog');
+const forecastJson={current:{time:'2026-04-20T08:00',temperature_2m:6.2,apparent_temperature:4,relative_humidity_2m:70,precipitation:0,weather_code:1,wind_speed_10m:2.5,wind_gusts_10m:5,is_day:1},daily:{time:['2026-04-20','2026-04-21','2026-04-22'],weather_code:[1,61,3],temperature_2m_max:[14,10,9],temperature_2m_min:[2,-1.5,0],precipitation_sum:[0,4,0],precipitation_probability_max:[10,80,null],wind_speed_10m_max:[4,6,3]}};
+const fc=parseForecast(forecastJson);
+assert.equal(fc.isDay,true);assert.equal(fc.days.length,3);assert.equal(fc.days[2].rainChance,null);
+assert.deepEqual(sprayConditions(fc),{ok:true,reason:'wiatr 2,5 m/s, bez opadów'});
+assert.equal(sprayConditions({...fc,wind:5.2}).ok,false);
+assert.match(sprayConditions({...fc,code:61}).reason,/deszcz/);
+assert.match(sprayConditions({...fc,days:[{...fc.days[0],rainChance:70}]}).reason,/70%/);
+assert.deepEqual(frostDays(fc).map(d=>d.date),['2026-04-21','2026-04-22']);
+assert.throws(()=>parseForecast({}),/Nieprawidłowa/);
 console.log('PASS: sale channels, fertiliser and lime doses, season weather, pre-harvest intervals, spray register and backup restore.');
