@@ -38,5 +38,14 @@ try{
  const out=await worker.dispatchFetch(base+'/api/auth/logout',{method:'POST',headers:{Origin:base,Cookie:freshCookie}});
  assert.equal(out.status,200);assert.ok(out.headers.get('set-cookie').includes('Max-Age=0'));
  assert.equal((await worker.dispatchFetch(base+'/api/farm',{headers:{Cookie:freshCookie}})).status,401);
- console.log('PASS: secure HTTPS cookies, fail-closed configuration, hashed tokens, server expiry (12 hours/30 days), password version and logout revocation in workerd/D1.');
+ // Rate limiting is per address (IPv6 per /64); many other addresses must not lock the owner out.
+ const attempt=(ip,pass='wrong-password')=>worker.dispatchFetch(base+'/api/auth/login',{redirect:'manual',method:'POST',headers:{Origin:base,'Content-Type':'application/x-www-form-urlencoded','CF-Connecting-IP':ip},body:new URLSearchParams({email:'fixture@example.test',password:pass})});
+ const statuses=[];for(let n=0;n<11;n++)statuses.push((await attempt('198.51.100.7')).status);
+ assert.deepEqual([statuses.slice(0,10).every(v=>v===401),statuses[10]],[true,429]);
+ for(let n=0;n<61;n++)assert.equal((await attempt('203.0.113.'+n)).status,401);
+ assert.equal((await attempt('192.0.2.1',password)).status,303,'Attempts from other addresses must not block the owner.');
+ for(let n=1;n<=10;n++)assert.equal((await attempt('2001:db8:1:2::'+n)).status,401);
+ assert.equal((await attempt('2001:DB8:1:2:ffff:0:0:1')).status,429,'One IPv6 /64 shares a limit.');
+ assert.equal((await attempt('2001:db8:1:3::1')).status,401,'Another /64 has its own limit.');
+ console.log('PASS: secure HTTPS cookies, fail-closed configuration, hashed tokens, server expiry (12 hours/30 days), password version, logout revocation and per-address login limits in workerd/D1.');
 }finally{await worker.dispose();await missing.dispose();}
