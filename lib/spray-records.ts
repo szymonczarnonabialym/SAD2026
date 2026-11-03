@@ -59,3 +59,13 @@ export function sprayRegister(records:OrchardRecord[],year:string,plotName:(id:s
   return used.map(({m,stock})=>({...common,product:stock!.name,amount:m.amount,unit:m.unit,dosePerHa:s.area?Math.round(m.amount/s.area*1000)/1000:null}));
  });
 }
+
+/** Hours the spray needs to dry on the leaves: the longest rainfastness among the products used. */
+export function treatmentRainfast(t:Treatment,stocks:Stock[],fallback:number):{hours:number,unknown:string[]}{
+ const used=(t.materials??[]).map(m=>stocks.find(s=>s.id===m.stockId)).filter((s):s is Stock=>!!s&&s.category==='protection');
+ const unknown=used.filter(s=>s.rainfastHours==null).map(s=>s.name);
+ const known=used.filter(s=>s.rainfastHours!=null).map(s=>s.rainfastHours!);
+ return {hours:Math.max(...known,unknown.length||!used.length?fallback:0),unknown};
+}
+/** Sprays from the last days, newest first, for checking rain after spraying. */
+export const recentSprays=(records:OrchardRecord[],fromDate:string)=>sprays(records).filter(s=>s.date>=fromDate).sort((a,b)=>(b.date+(b.time??'')).localeCompare(a.date+(a.time??'')));
