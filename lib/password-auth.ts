@@ -23,11 +23,23 @@ function sessionToken(request: Request): string | null {
 function sessionCookie(request: Request, token: string, maxAge?: number): string {
   return `${cookieName(request)}=${token}; Path=/; HttpOnly; SameSite=Lax${secure(request)?'; Secure':''}${maxAge!==undefined?`; Max-Age=${maxAge}`:''}`;
 }
+// Tables only need creating once per isolate, not on every authenticated request.
+let loginTablesReady = false;
 export async function ensureLoginTables(db: D1Database) {
+  if (loginTablesReady) return;
   await db.batch([
     db.prepare('CREATE TABLE IF NOT EXISTS auth_sessions (token_hash TEXT PRIMARY KEY NOT NULL, owner TEXT NOT NULL, expires INTEGER NOT NULL, password_version TEXT NOT NULL)'),
     db.prepare('CREATE TABLE IF NOT EXISTS auth_login_attempts (bucket TEXT PRIMARY KEY NOT NULL, attempts INTEGER NOT NULL, expires INTEGER NOT NULL)'),
   ]);
+  loginTablesReady = true;
+}
+// IPv6 clients usually control a whole /64, so it counts as one address for rate limiting.
+function clientNetwork(request: Request): string {
+  const ip = request.headers.get('CF-Connecting-IP') ?? 'local';
+  if (!ip.includes(':') || ip.includes('.')) return ip;
+  const [head, tail] = ip.toLowerCase().split('::'), left = head ? head.split(':') : [], right = tail ? tail.split(':') : [];
+  const groups = tail === undefined ? left : [...left, ...Array(Math.max(0, 8-left.length-right.length)).fill('0'), ...right];
+  return groups.slice(0,4).map(group => group.replace(/^0+(?=.)/, '')).join(':')+'::/64';
 }
 function trustedRequest(request: Request, email: string): Request {
   const headers = new Headers(request.headers);
@@ -53,8 +65,8 @@ export async function passwordAuth(request: Request, env: PasswordEnv): Promise<
     const body=await request.text(); if(body.length>4096)return json({error:'Formularz jest zbyt długi.'},413);
     const form=new URLSearchParams(body), email=(form.get('email')??'').trim().toLowerCase(), password=form.get('password')??'';
     await ensureLoginTables(db);
-    const ip=request.headers.get('CF-Connecting-IP')??'local';
-    const buckets=[{key:'ip:'+digest(ip)+':'+Math.floor(now/900),limit:10,expires:now+900},{key:'global:'+Math.floor(now/60),limit:60,expires:now+60}];
+    // Per-address limit only: a shared global bucket would let anyone lock the owner out.
+    const buckets=[{key:'ip:'+digest(clientNetwork(request))+':'+Math.floor(now/900),limit:10,expires:now+900}];
     const attempts=await db.batch(buckets.map(bucket=>db.prepare('INSERT INTO auth_login_attempts (bucket,attempts,expires) VALUES (?,1,?) ON CONFLICT(bucket) DO UPDATE SET attempts=attempts+1 RETURNING attempts').bind(bucket.key,bucket.expires)));
     if(attempts.some((result,index)=>Number((result.results[0] as {attempts:number})?.attempts)>buckets[index].limit)) {
       const response=loginPage(config.email,'Za dużo prób logowania. Spróbuj ponownie za 15 minut.',429);response.headers.set('Retry-After','900');return response;
