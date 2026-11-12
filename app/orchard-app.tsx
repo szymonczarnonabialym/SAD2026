@@ -18,6 +18,7 @@ import {PlanList,PlanForm,GrowthStageField} from './orchard-plans';
 import {stageLabel} from '@/lib/growth-stages';
 import OrchardStatistics from './orchard-statistics';
 import OrchardWeatherTab from './orchard-weather-tab';
+import ReminderPopup from './orchard-reminder-popup';
 import {SoilForm} from './orchard-soil-form';
 import {SoilTable} from './orchard-soil-table';
 import {soilSummary} from '@/lib/soil';
@@ -171,7 +172,7 @@ export default function Orchard(){
   const tool={name:'read_orchard_summary',title:'Podsumowanie sadu',description:'Odczytuje podsumowanie aktualnie wybranego sezonu oraz zapisane odmiany; nie zmienia danych.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:async(input:unknown)=>{if(!input||typeof input!=='object'||Object.keys(input).length)throw new Error('Oczekiwano pustego obiektu.');return{season:year,wiśnie:season.sour,czereśnie:season.sweet,salesValue:season.sales,recordedCosts:season.costs,recordedResult:season.result,currentTrees,varieties:varietyStats,pending:device?.pending.length??0}}};
   Promise.resolve(context.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});return()=>lifecycle.abort();
  },[year,currentTrees,device]);
- return <div className="app"><Toaster position="top-center" richColors/>
+ return <div className="app"><Toaster position="top-center" richColors/><ReminderPopup records={records} plots={plots} enabled={!!device&&!auth&&!loading&&!loggingOut&&!modal&&!remove&&sheet===null} onComplete={save}/>
  <aside className="sidebar" aria-label="Menu główne"><div className="brand"><span className="brandmark"><Sprout/></span><div><strong>Mój Sad</strong><small>Wiśnie i czereśnie</small></div></div><nav className="side-nav">{navItems.map(item=><button key={item.id} className="side-link" aria-current={tab===item.id?'page':undefined} onClick={()=>go(item.id)}><item.icon size={18}/>{item.label}</button>)}</nav><div className="sidebar-foot">{seasonChoice}<div className="header-right"><span className="sync">{syncing?<LoaderCircle size={16} className="spin"/>:offline?<WifiOff size={16}/>:<CloudCheck size={16}/>}<span>{syncing?'Zapisywanie…':offline?'Bez połączenia':device?.pending.length?`${device.pending.length} oczekuje`:'Dziennik gospodarstwa'}</span></span>{passwordLogin&&device&&!auth&&<button className="link-btn" disabled={loggingOut||syncing} onClick={()=>void logout()}>{loggingOut?'Wylogowywanie…':'Wyloguj'}</button>}{install&&<button className="link-btn" onClick={async()=>{await install.prompt();setInstall(null)}}>Zainstaluj</button>}</div></div></aside>
  <div className="app-main"><header className="topbar"><div className="topbar-title"><span className="brandmark mobile-only"><Sprout/></span><h1>{pageTitle}</h1></div><div className="topbar-actions"><span className={'sync-pill'+(offline?' offline':'')} title={syncLabel}>{syncIcon}<span>{syncLabel}</span></span><div className="mobile-only season-mobile">{seasonChoice}</div></div></header><main>
  {loading&&<p className="notice">Wczytywanie gospodarstwa…</p>}

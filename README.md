@@ -22,7 +22,7 @@ Aplikacja do prowadzenia sadów wiśniowych i czereśniowych, dostosowana do tel
 - Lista zakupów: `max(0, zużycie w wybranym roku - obecny stan)`, eksport TXT.
 - Osiem głównych faz BBCH, szczegóły zielonego/białego pąka, dodatkowy etap „Po zbiorach” i własny opis.
 - Katalog 18 nazw środków z programów Instytutu Ogrodnictwa 2026. Nawozy i inne środki dodaje się ręcznie. Katalog nazw nie jest zaleceniem stosowania; linki do źródeł i aktualnych etykiet MRiRW są w formularzu.
-- Przypomnienia w aplikacji według daty i wyprzedzenia, eksport ICS z alarmem do kalendarza telefonu. Plany nie zużywają środków; wykonany zabieg zapisuje się osobno.
+- Przypomnienia w aplikacji według daty i wyprzedzenia (po otwarciu aplikacji aktualne przypomnienia wyskakują w okienku raz dziennie: „Zrobione”, „Przypomnij jutro”), eksport ICS z alarmem do kalendarza telefonu. Plany nie zużywają środków; wykonany zabieg zapisuje się osobno.
 - CSV sezonu, kopia JSON, PWA z manifestem i powłoką offline.
 - W wariancie na własnym Cloudflare: login i hasło, zapamiętywanie urządzenia przez 30 dni oraz wylogowanie. Konfiguracja konta jest sekretem Workera; hasło nie trafia do repozytorium.
 
