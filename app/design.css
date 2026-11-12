@@ -357,3 +357,20 @@ button:focus-visible,a:focus-visible,label:focus-within{outline:2px solid var(--
 .weather-grid>*,.panel{min-width:0}
 /* The production CSS minifier folds `translate:none` into `transform`, so the dialog's Tailwind centring offset
    (translate: var(--tw-translate-x) var(--tw-translate-y)) is reset through its variables instead. */
+
+/* ---------- Reminder popup ---------- */
+.reminder-popup{max-width:480px}
+.reminder-head{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.reminder-bell{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--warn-soft);color:var(--warn);flex-shrink:0}
+.reminder-head [data-slot=dialog-description]{font-size:13px;color:var(--ink-3)}
+.reminder-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.reminder-list li{display:grid;gap:3px;padding:14px;border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:var(--r-md);background:var(--surface)}
+.reminder-list li.late{border-left-color:var(--danger)}
+.reminder-list li strong{font-size:16px;line-height:1.3}
+.reminder-when{font-size:13.5px;color:var(--ink-2)}
+.reminder-when::first-letter{text-transform:uppercase}
+.reminder-list li.late .reminder-when b{color:var(--danger)}
+.reminder-list .note-text{margin:4px 0 0;font-size:13.5px;color:var(--ink-2)}
+.reminder-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.reminder-actions .button{flex:1;min-width:130px}
+.reminder-close{justify-self:center;margin-top:4px}
