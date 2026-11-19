@@ -25,7 +25,9 @@ export const initialOffer:SiteOffer={siteEnabled:true,season:2026,message:'',ite
 ]};
 
 // This table contains only the intentionally published shop offer, never farm records.
-async function ensureTable(db:D1Database){await db.prepare('CREATE TABLE IF NOT EXISTS site_offer (id TEXT PRIMARY KEY, data TEXT NOT NULL, revision INTEGER NOT NULL, updated_at TEXT NOT NULL)').run()}
+// Created once per isolate; public page views would otherwise run DDL on every request.
+let tableReady=false;
+async function ensureTable(db:D1Database){if(tableReady)return;await db.prepare('CREATE TABLE IF NOT EXISTS site_offer (id TEXT PRIMARY KEY, data TEXT NOT NULL, revision INTEGER NOT NULL, updated_at TEXT NOT NULL)').run();tableReady=true}
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 export async function readOffer(db:D1Database):Promise<OfferSnapshot>{
   await ensureTable(db);
