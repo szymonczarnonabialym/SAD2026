@@ -1,23 +1,21 @@
 'use client';
 import {useState,useRef,type FormEvent} from 'react';
 import {Plus,Pencil,Trash2,Download} from 'lucide-react';
-import {shoppingList,stockBalance,stockCosts,usedStock,unitPriceFromTotal,today,recordSchema,type OrchardRecord,type Stock,type Kind} from '@/lib/orchard';
+import {shoppingList,stockBalance,stockCosts,unitPriceFromTotal,today,recordSchema,type OrchardRecord,type Stock,type Kind} from '@/lib/orchard';
 import {formatMoney} from '@/lib/format-money';
 import {protectionProducts,protectionCatalogSources,catalogPreHarvest,preHarvestCheckedAt} from '@/lib/protection-products';
 const fmt=(n:number)=>new Intl.NumberFormat('pl-PL',{maximumFractionDigits:6}).format(n);
 export function downloadText(name:string,text:string,type='text/plain;charset=utf-8'){const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 export function Warehouse({records,year,disabled,pending,onAdd,onDelete}:{records:OrchardRecord[],year:string,disabled:boolean,pending:Set<string>,onAdd:(kind:Kind,r?:OrchardRecord)=>void,onDelete:(r:OrchardRecord)=>void}){
  const [category,setCategory]=useState('all');
- const previousYear=String(Number(year)-1);
  const inventory=shoppingList(records,year),shown=inventory.filter(x=>category==='all'||x.stock.category===category),shopping=shown.filter(x=>x.toBuy>0);
  const purchases=records.filter(r=>r.kind==='purchase'&&r.date.slice(0,4)===year).sort((a,b)=>b.date.localeCompare(a.date));
  const unlinked=records.filter(r=>r.kind==='treatment'&&r.date.slice(0,4)===year&&['Oprysk','Nawożenie'].includes(r.treatment)&&!r.materials?.length).length;
  return <><div className="toolbar"><div className="button-group"><button className={'button '+(category==='all'?'':'secondary')} onClick={()=>setCategory('all')}>Wszystkie</button><button className={'button '+(category==='protection'?'':'secondary')} onClick={()=>setCategory('protection')}>Ochrona roślin</button><button className={'button '+(category==='fertilizer'?'':'secondary')} onClick={()=>setCategory('fertilizer')}>Nawozy</button></div><button className="button" disabled={disabled} onClick={()=>onAdd('stock')}><Plus size={18}/>Dodaj środek / nawóz</button></div>
  <p className="progress-note">Stan obejmuje wszystkie zakupy pomniejszone o zużycie przypisane do zabiegów, ze wszystkich sezonów.</p>
- {shown.length>0&&<section className="panel"><div className="table-scroll"><table className="comparison-table inventory-table"><thead><tr><th>Nazwa</th><th>Na stanie</th><th>Zużycie {previousYear}</th><th>Zużycie {year}</th><th>Koszt zakupów</th><th><span className="sr-only">Akcje</span></th></tr></thead><tbody>{shown.map(({stock,balance,used})=>{const costs=stockCosts(stock,records),low=balance<=stock.minimum;return <tr key={stock.id}>
+ {shown.length>0&&<section className="panel"><div className="table-scroll"><table className="comparison-table inventory-table"><thead><tr><th>Nazwa</th><th>Na stanie</th><th>Zużycie {year}</th><th>Koszt zakupów</th><th><span className="sr-only">Akcje</span></th></tr></thead><tbody>{shown.map(({stock,balance,used})=>{const costs=stockCosts(stock,records),low=balance<=stock.minimum;return <tr key={stock.id}>
   <th scope="row">{stock.name}{category==='all'&&<span>{stock.category==='protection'?'Środek ochrony roślin':'Nawóz'}</span>}</th>
   <td className={low?'stock-low':undefined}><strong>{fmt(balance)} {stock.unit}</strong>{low&&<small>{balance===0?'brak na stanie':`minimum ${fmt(stock.minimum)} ${stock.unit}`}</small>}</td>
-  <td>{fmt(usedStock(stock.id,records,previousYear))} {stock.unit}</td>
   <td>{fmt(used)} {stock.unit}</td>
   <td>{costs.average!=null?<>{formatMoney(costs.paid)} zł<small>śr. {formatMoney(costs.average)} zł/{stock.unit}</small>{costs.missingPrices>0&&<small>część zakupów bez ceny</small>}</>:<>—<small>cena niepodana</small></>}</td>
   <td><div className="inventory-actions"><button className="icon-btn" aria-label={`Dodaj zakup: ${stock.name}`} title="Dodaj zakup" disabled={disabled} onClick={()=>onAdd('purchase',{id:'',kind:'purchase',stockId:stock.id,amount:1,unit:stock.unit,date:today(),version:0,note:''})}><Plus/></button><button className="icon-btn" aria-label={`Edytuj środek ${stock.name}`} title="Edytuj" disabled={disabled||pending.has(stock.id)} onClick={()=>onAdd('stock',stock)}><Pencil/></button><button className="icon-btn" aria-label={`Usuń środek ${stock.name}`} title="Usuń" disabled={disabled||pending.has(stock.id)} onClick={()=>onDelete(stock)}><Trash2/></button></div></td>
